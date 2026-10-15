@@ -44,6 +44,21 @@ Configure the GitHub `production` environment with the following variables and s
 | `R2_ACCESS_KEY_ID`      | Access key for R2 multipart uploads                                          | R2 section → Manage API Tokens → create with **Object Read & Write**, scoped to the `free-locker` bucket    |
 | `R2_SECRET_ACCESS_KEY`  | Secret key paired with `R2_ACCESS_KEY_ID`                                    | Shown once when creating the R2 API token — store it immediately                                            |
 
+### Cloudflare API permissions
+
+Create `CLOUDFLARE_API_TOKEN` as an account-scoped token, limited to the production
+account, with these permissions:
+
+| Permission group | Permission       | Access | Why it is required                                          |
+| ---------------- | ---------------- | ------ | ----------------------------------------------------------- |
+| Account          | Workers Scripts  | Edit   | Uploads and activates the Worker and its static assets.     |
+| Account          | D1               | Edit   | Applies the production D1 migrations.                       |
+| Account          | Account Settings | Read   | Lets Wrangler read the account context used for deployment. |
+
+The deployment does not require an account-wide administrator token, DNS permissions,
+or R2 permissions. Add Workers Routes `Edit` only if this workflow is later changed
+to manage Worker routes or custom domains.
+
 Pass Worker configuration through Wrangler `--var` flags. Keep all secrets out of Git and do not pass them with `--var`.
 
 ## Upload and download
