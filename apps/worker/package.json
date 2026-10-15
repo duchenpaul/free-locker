@@ -1,0 +1,24 @@
+{
+    "name": "@free-locker/worker",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "wrangler deploy --dry-run",
+        "dev": "wrangler d1 migrations apply free-locker --local && wrangler dev",
+        "lint": "eslint src",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:integration": "vitest run --config vitest.integration.config.ts"
+    },
+    "dependencies": {
+        "@fastify/busboy": "^3.1.1",
+        "@free-locker/shared": "workspace:*",
+        "aws4fetch": "^1.0.20",
+        "hono": "^4.9.7"
+    },
+    "devDependencies": {
+        "@cloudflare/vitest-plugin": "^1.4.1",
+        "@cloudflare/workers-types": "^5.20261014.1"
+    }
+}

@@ -1,0 +1,692 @@
+/* ============================================================
+   free-locker — visual design lifted from sendit.sh
+   Two display modes, both from the era the tool belongs to:
+     paper  - warm continuous-form stock, dark ink
+     amber  - P3 amber phosphor: the "easy on the eyes" CRT,
+              warm off-white instead of blue-white glare
+   ============================================================ */
+
+:root {
+  --mono: 'SF Mono', 'Segoe UI Mono', 'Roboto Mono', Menlo, Consolas, Courier, monospace;
+  --sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* paper (default) */
+  --bg: #f4efe2;
+  --fg: #2b2620;
+  --muted: #6f6555;
+  --rule: #ddd3bd;
+  --accent: #9a5b12;
+  --accent-hv: #c2410c;
+  --code-bg: #1a1611;
+  --code-hv: #221d15;
+  --code-fg: #e8d5a8;
+  --chip-bg: #2b2620;
+  --chip-fg: #e8d5a8;
+  --bar-bg: #ddd3bd;
+  --danger: #b23a2a;
+  --ok: #4f7a34;
+}
+
+/* amber phosphor - follows the OS unless the reader picked a mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #1a1611;
+    --fg: #ddc9a0;
+    --muted: #9c8a68;
+    --rule: #332b20;
+    --accent: #ffb454;
+    --accent-hv: #ffd08a;
+    --code-bg: #0f0d09;
+    --code-hv: #16120c;
+    --code-fg: #e8d5a8;
+    --chip-bg: #2a2318;
+    --chip-fg: #d9c193;
+    --bar-bg: #332b20;
+    --danger: #e08a72;
+    --ok: #9ec37a;
+  }
+}
+
+/* explicit choice always wins */
+:root[data-theme='dark'] {
+  --bg: #1a1611;
+  --fg: #ddc9a0;
+  --muted: #9c8a68;
+  --rule: #332b20;
+  --accent: #ffb454;
+  --accent-hv: #ffd08a;
+  --code-bg: #0f0d09;
+  --code-hv: #16120c;
+  --code-fg: #e8d5a8;
+  --chip-bg: #2a2318;
+  --chip-fg: #d9c193;
+  --bar-bg: #332b20;
+  --danger: #e08a72;
+  --ok: #9ec37a;
+}
+
+/* Layout */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+body {
+  /* machine voice in mono, explanatory prose in sans */
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+code,
+pre,
+h1,
+h2,
+h3,
+#browser-header,
+.theme-toggle,
+.meta-line,
+#uploaded {
+  font-family: var(--mono);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: normal;
+  margin: 0 0 0.5em 0;
+  letter-spacing: -0.01em;
+}
+
+h2,
+h3 {
+  margin: 1.5em 0 0.5em 0;
+}
+
+h1 sup {
+  vertical-align: text-top;
+  color: var(--muted);
+  font-size: x-small;
+}
+
+p,
+ul {
+  line-height: 160%;
+}
+
+ul.docs {
+  columns: 2;
+}
+
+ul.docs .active {
+  font-weight: bold;
+  color: var(--fg);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hv);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sorry {
+  margin: 2em;
+  text-align: center;
+  color: var(--danger);
+}
+
+#content {
+  max-width: 700px;
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 0 1em 1em 1em;
+}
+
+footer {
+  padding: 15px 0;
+  font-size: x-small;
+  text-align: center;
+  line-height: 150%;
+  background: var(--bg);
+}
+
+header {
+  font-size: 1em;
+  padding: 1em 0;
+  position: relative;
+}
+
+/* Display-mode switch: names the mode you are going to, in terminal brackets */
+
+.header-actions {
+  position: absolute;
+  top: 1em;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.header-actions nav {
+  display: flex;
+  gap: 0.5em;
+}
+
+.theme-toggle {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#focus {
+  margin-top: 10vh;
+}
+
+#upload-instructions {
+  text-align: center;
+}
+
+/* the strip above the command reads as a terminal title bar */
+#browser-header {
+  height: 22px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  border-radius: 2px 2px 0 0;
+  font-size: 10px;
+  line-height: 22px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#copy {
+  position: fixed;
+  top: -100px;
+}
+
+code {
+  text-align: left;
+  display: block;
+  background: var(--code-bg);
+  padding: 1.6em 2em;
+  border-radius: 0 0 2px 2px;
+  color: var(--code-fg);
+  line-height: 1.5;
+}
+
+code:hover {
+  background: var(--code-hv);
+  cursor: pointer;
+}
+
+/* signature: the command is the whole product, so it gets a live cursor.
+   ::after content is not part of innerText, so copy-to-clipboard stays clean. */
+#upload-instructions code::after {
+  content: '\2588';
+  margin-left: 0.2em;
+  color: var(--accent);
+  animation: blink 1.1s step-end infinite;
+}
+
+@keyframes blink {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.note {
+  color: var(--muted);
+}
+
+/* lifetime / download budget on the download page */
+.meta-line {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  margin-top: 1em;
+}
+
+.alert {
+  color: var(--danger);
+}
+
+.alert a {
+  color: var(--ok);
+}
+
+.docs img {
+  max-width: 100%;
+}
+
+/* Uploaded files list */
+
+#uploaded {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  list-style: none;
+  font-size: x-small;
+  line-height: 160%;
+}
+
+#uploaded li {
+  padding: 1em 0 1em 0;
+  border-top: 1px dashed var(--rule);
+}
+
+/* Drag&Drop component */
+
+#dropper {
+  box-sizing: border-box;
+  padding: 2em 1em;
+  font-size: x-small;
+  color: var(--muted);
+  border: 2px dashed var(--rule);
+  border-radius: 12px;
+  background: transparent;
+  text-align: center;
+  font-family: var(--mono);
+  margin-top: 1.5em;
+  cursor: pointer;
+}
+
+#dropper:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#dropper.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#dropzone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+}
+
+#dropzone.active {
+  background: var(--bg);
+  opacity: 0.75;
+  z-index: 1;
+}
+
+/* Docs markers */
+
+b.c1 {
+  color: #ff851b;
+}
+b.c2 {
+  color: #7fdbff;
+}
+b.c3 {
+  color: #2ecc40;
+}
+b.c4 {
+  color: #ffdc00;
+}
+
+/* Mobile version */
+
+@media (max-width: 600px) {
+  footer {
+    font-size: small;
+  }
+
+  ul.docs {
+    columns: 1;
+  }
+
+  .aslo {
+    display: none;
+  }
+
+  #focus {
+    margin-top: 1em;
+  }
+
+  .header-actions {
+    position: static;
+    justify-content: flex-end;
+    margin-bottom: 1em;
+  }
+}
+
+/* Upload progress (browser uploads) */
+
+#upload-progress {
+  display: none;
+  margin: 1em 0 0.5em 0;
+  font-size: x-small;
+  line-height: 1.6;
+  font-family: var(--mono);
+}
+.up-bar {
+  height: 8px;
+  background: var(--bar-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.up-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.15s linear;
+}
+.up-line1 {
+  color: var(--fg);
+  font-weight: bold;
+}
+.up-line2 {
+  color: var(--muted);
+}
+
+/* Multi-line code snippets (CI recipes, examples) */
+pre {
+  text-align: left;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 1.4em 1.6em;
+  border-radius: 2px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+/* ============================================================
+   free-locker additions (queue, file browser, info pages) —
+   same primitives and variables as the sendit.sh design above
+   ============================================================ */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.button {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  border: 0;
+  border-radius: 2px;
+  padding: 8px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.button:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  display: inline-flex;
+}
+
+.icon-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.icon-button--danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* staged upload queue rendered inside sendit's #uploaded list */
+
+.queue-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  margin-top: 1.5em;
+}
+
+.queue-heading h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+#uploaded .queue-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.queue-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-item__title-row {
+  display: flex;
+  gap: 0.75em;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.queue-item__title-row strong {
+  overflow-wrap: anywhere;
+}
+
+.status-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.queue-item--success .status-label {
+  color: var(--ok);
+}
+.queue-item--failed .status-label,
+.queue-item--cancelled .status-label {
+  color: var(--danger);
+}
+.queue-item--uploading .status-label {
+  color: var(--accent);
+}
+
+.queue-item__meta {
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.queue-item__error {
+  color: var(--danger);
+  margin: 0.5em 0 0 0;
+}
+
+.share-result {
+  margin-top: 0.5em;
+  overflow-wrap: anywhere;
+}
+
+.share-result__expiry {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 0.25em;
+}
+
+.queue-item__tools {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* toast */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font-family: var(--mono);
+  font-size: x-small;
+  padding: 8px 12px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+/* file browser */
+
+.files-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1em;
+  flex-wrap: wrap;
+  margin-top: 2em;
+}
+
+.files-page__error {
+  color: var(--danger);
+}
+.files-page__loading {
+  color: var(--muted);
+  margin-top: 2em;
+}
+
+.file-browser-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.file-browser-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.file-browser-actions input {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--fg);
+  box-sizing: border-box;
+}
+
+.files-table-wrap {
+  overflow-x: auto;
+  margin-top: 1em;
+}
+
+.files-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.files-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 10px;
+}
+
+.files-table td {
+  border-bottom: 1px dashed var(--rule);
+  padding: 8px 10px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+/* help & static pages */
+
+.documentation,
+.info-shell {
+  margin-top: 2em;
+}
+
+.documentation section {
+  margin-top: 1.5em;
+}
+
+.info-page {
+  margin-top: 2em;
+}
+
+.section-mark {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}

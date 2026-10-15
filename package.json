@@ -1,0 +1,44 @@
+{
+  "name": "free-locker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Temporary file sharing on Cloudflare Workers",
+  "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=22.17.0",
+    "pnpm": ">=11.1.3"
+  },
+  "scripts": {
+    "build": "pnpm --filter @free-locker/shared build && pnpm --filter @free-locker/web build && pnpm --filter @free-locker/cli build && pnpm --filter @free-locker/worker build",
+    "dev": "pnpm --parallel --filter @free-locker/web --filter @free-locker/worker run dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm --recursive run lint",
+    "typecheck": "pnpm --recursive run typecheck",
+    "test": "pnpm run test:shared && pnpm run test:web && pnpm run test:worker && pnpm run test:cli",
+    "test:cli": "pnpm --filter @free-locker/cli run test",
+    "test:e2e": "pnpm --filter @free-locker/web run test:e2e",
+    "test:integration": "pnpm --filter @free-locker/worker run test:integration",
+    "test:shared": "pnpm --filter @free-locker/shared run test",
+    "test:web": "pnpm --filter @free-locker/web run test",
+    "test:worker": "pnpm --filter @free-locker/worker run test",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.33.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "playwright": "^1.55.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1",
+    "vite": "^7.1.4",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.34.0"
+  }
+}

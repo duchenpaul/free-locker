@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://free-locker.example", "http://localhost:5173"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]

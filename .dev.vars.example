@@ -1,0 +1,2 @@
+# Copy the worker-specific template instead of committing secrets here.
+# See apps/worker/.dev.vars.example.

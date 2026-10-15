@@ -1,0 +1,12 @@
+{
+  "runtimeMode": "local",
+  "maxSingleUploadBytes": 99614720,
+  "maxMultipartUploadBytes": 10737418240,
+  "retentionHours": 24,
+  "maxDownloads": 5,
+  "fileListingMode": "disabled",
+  "fileListingMaxRows": 100,
+  "downloadGrantTtlSeconds": 600,
+  "multipartPartSizeBytes": 16777216,
+  "uploadRateLimitPerHour": 20
+}
