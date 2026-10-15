@@ -35,12 +35,14 @@ Set secrets interactively or through a protected deployment environment. Do not 
 ```sh
 pnpm --filter @free-locker/worker exec wrangler secret put ADMIN_TOKEN
 pnpm --filter @free-locker/worker exec wrangler secret put IP_HASH_SALT
-pnpm --filter @free-locker/worker exec wrangler secret put R2_ACCOUNT_ID
 pnpm --filter @free-locker/worker exec wrangler secret put R2_ACCESS_KEY_ID
 pnpm --filter @free-locker/worker exec wrangler secret put R2_SECRET_ACCESS_KEY
 ```
 
-The R2 signing key must be narrowly scoped to the transfer bucket and multipart operations. Use a short-lived, least-privilege token when Cloudflare supports it. No client receives this secret.
+Pass `R2_ACCOUNT_ID` to `wrangler deploy` as a non-secret variable. It is the same
+value as the Cloudflare account ID. The R2 signing key must be narrowly scoped to the
+transfer bucket and multipart operations. Use a short-lived, least-privilege token
+when Cloudflare supports it. No client receives this secret.
 
 ## Local development
 
@@ -67,19 +69,45 @@ pnpm --filter @free-locker/worker build
 pnpm check
 pnpm --filter @free-locker/web build
 pnpm --filter @free-locker/worker exec wrangler d1 migrations apply free-locker --remote --config wrangler.jsonc
-pnpm --filter @free-locker/worker exec wrangler deploy --config wrangler.jsonc
+pnpm --filter @free-locker/worker exec wrangler deploy --config wrangler.jsonc --var R2_ACCOUNT_ID:<cloudflare-account-id>
 ```
 
 Attach a custom domain through Workers and set `PUBLIC_BASE_URL` to its HTTPS origin. A Workers.dev subdomain also works for testing. Verify that the deployed Worker fails closed if the daily Workers quota is exhausted; a security-sensitive route must not fall through to an unprotected origin.
 
 ## GitHub Actions
 
-Set repository or protected-environment secrets:
+The workflow deploys through the GitHub `prod` environment, creates the
+`free-locker` R2 bucket when it is missing, and synchronizes the following GitHub
+environment secrets to the production Worker:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
+- `ADMIN_TOKEN` (optional)
+- `IP_HASH_SALT`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
 
-The deploy workflow runs only on `main` pushes or manual dispatch, never on pull requests. Require environment approval for production. The repository configuration still needs the real D1 ID before the workflow can deploy.
+Create `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` manually in the Cloudflare R2
+dashboard before the first deployment. The permanent secret access key is displayed
+only once and cannot be retrieved or minted through the Cloudflare API. Scope the
+credential to Object Read & Write for the `free-locker` bucket.
+
+The workflow uses `CLOUDFLARE_ACCOUNT_ID` as the Worker’s `R2_ACCOUNT_ID`.
+
+Configure the following non-secret GitHub environment variables in `prod`. The
+workflow passes them to Wrangler as Worker variables:
+
+- `PUBLIC_BASE_URL=https://free-locker.noob.pp.ua`
+- `RETENTION_HOURS=24`
+- `MAX_DOWNLOADS=5`
+- `FILE_LISTING_MODE=enabled`
+- `RUNTIME_MODE=cloudflare`
+
+Grant the deployment API token Account-level R2 Storage `Edit` in addition to the
+Workers Scripts, D1, and Account Settings permissions. The deploy workflow runs only
+on `main` pushes or manual dispatch, never on pull requests. Require environment
+approval for production. The repository configuration still needs the real D1 ID
+before the workflow can deploy.
 
 ## Rollback
 
