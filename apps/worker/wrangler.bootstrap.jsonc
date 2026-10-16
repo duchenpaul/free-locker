@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "free-locker",
+  "main": "src/bootstrap.ts",
+  "compatibility_date": "2026-10-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["*/15 * * * *"],
+  },
+  "vars": {
+    "D1_DATABASE_NAME": "free-locker",
+    "R2_BUCKET_NAME": "free-locker",
+  },
+}

@@ -147,7 +147,9 @@ describe('App', () => {
     render(<App />);
 
     await screen.findByText('release.zip');
-    fireEvent.change(screen.getByLabelText('Operator token'), { target: { value: 'operator-token' } });
+    fireEvent.change(screen.getByLabelText('Operator token'), {
+      target: { value: 'operator-token' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Delete release.zip' }));
 
     await waitFor(() =>

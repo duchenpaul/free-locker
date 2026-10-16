@@ -6,6 +6,9 @@ run:
 check:
     pnpm check
 
+format:
+    pnpm format
+
 build:
     pnpm build
 
@@ -20,3 +23,5 @@ test-cli:
 
 test-integration:
     pnpm test:integration
+
+test: test-worker test-web test-cli test-integration

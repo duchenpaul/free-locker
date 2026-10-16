@@ -16,6 +16,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': `http://127.0.0.1:${process.env.WORKER_PORT ?? 8787}`,
+      '/': {
+        target: `http://127.0.0.1:${process.env.WORKER_PORT ?? 8787}`,
+        bypass(request) {
+          if (request.method === 'GET' || request.method === 'HEAD') {
+            return request.url;
+          }
+        },
+      },
     },
   },
   test: {

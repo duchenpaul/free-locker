@@ -65,7 +65,7 @@ export async function uploadRawFile(
     originalFilename: displayFilename,
     publicId,
     scanStatus: 'unscanned',
-    uploadIp: input.uploadIp,
+    uploadIp: input.uploadIp ?? null,
   });
 
   const archiveInspector = createArchiveInspector();

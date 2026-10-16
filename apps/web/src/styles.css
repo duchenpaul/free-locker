@@ -166,7 +166,7 @@ footer {
 
 header {
   font-size: 1em;
-  padding: 1em 0;
+  padding: 2em 0 1em;
   position: relative;
 }
 
@@ -174,7 +174,7 @@ header {
 
 .header-actions {
   position: absolute;
-  top: 1em;
+  top: 2em;
   right: 0;
   display: flex;
   align-items: center;
@@ -596,6 +596,12 @@ pre {
 }
 
 /* file browser */
+
+.files-page {
+  width: min(1100px, calc(100vw - 2em));
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
 
 .files-page__header {
   display: flex;

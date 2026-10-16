@@ -9,6 +9,7 @@ on:
       - 'packages/**'
       - 'migrations/**'
       - 'config/**'
+      - 'deploy/**'
       - '.github/workflows/deploy.yml'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -23,79 +24,39 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: prod
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v5
+      - name: Check environment configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
+          MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
+          FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
+          RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
+          GITHUB_ENVIRONMENT: prod
+        run: bash deploy/check-environment-configuration.sh
+      - uses: pnpm/action-setup@v5
         with:
           version: 11.1.3
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm build
-      - name: Create R2 bucket when missing
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          bucket_status="$(
-            curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-              --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets/free-locker"
-          )"
-
-          case "${bucket_status}" in
-            200)
-              echo "R2 bucket free-locker already exists."
-              ;;
-            404)
-              curl --fail-with-body --silent --show-error \
-                --request POST \
-                --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                --header "Content-Type: application/json" \
-                --data '{"name":"free-locker"}' \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/r2/buckets"
-              ;;
-            *)
-              echo "Unable to determine whether R2 bucket free-locker exists (HTTP ${bucket_status})." >&2
-              exit 1
-              ;;
-          esac
-      - name: Sync Worker secrets
-        working-directory: apps/worker
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
-          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          : "${IP_HASH_SALT:?GitHub production secret IP_HASH_SALT is required}"
-          : "${R2_ACCESS_KEY_ID:?GitHub production secret R2_ACCESS_KEY_ID is required}"
-          : "${R2_SECRET_ACCESS_KEY:?GitHub production secret R2_SECRET_ACCESS_KEY is required}"
-
-          if [ -n "${ADMIN_TOKEN}" ]; then
-            printf '%s' "${ADMIN_TOKEN}" | pnpm exec wrangler secret put ADMIN_TOKEN --config wrangler.jsonc
-          fi
-          printf '%s' "${IP_HASH_SALT}" | pnpm exec wrangler secret put IP_HASH_SALT --config wrangler.jsonc
-          printf '%s' "${R2_ACCESS_KEY_ID}" | pnpm exec wrangler secret put R2_ACCESS_KEY_ID --config wrangler.jsonc
-          printf '%s' "${R2_SECRET_ACCESS_KEY}" | pnpm exec wrangler secret put R2_SECRET_ACCESS_KEY --config wrangler.jsonc
-      - name: Apply D1 migrations
-        working-directory: apps/worker
-        run: pnpm exec wrangler d1 migrations apply free-locker --remote --config wrangler.jsonc
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Deploy Worker and static assets
+      - name: Deploy bootstrap Worker
         working-directory: apps/worker
         run: |
-          pnpm exec wrangler deploy --config wrangler.jsonc \
-            --var R2_ACCOUNT_ID:${CLOUDFLARE_ACCOUNT_ID} \
+          pnpm exec wrangler deploy --config wrangler.bootstrap.jsonc \
+            --var D1_DATABASE_NAME:${D1_DATABASE_NAME} \
+            --var R2_BUCKET_NAME:${R2_BUCKET_NAME} \
             --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
             --var RETENTION_HOURS:${RETENTION_HOURS} \
             --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
@@ -104,8 +65,66 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          D1_DATABASE_NAME: free-locker
+          R2_BUCKET_NAME: free-locker
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
+      - name: Provision Worker resources
+        id: resources
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKER_NAME: free-locker
+        run: bash deploy/provision-worker-resources.sh
+      - name: Apply D1 migrations
+        working-directory: apps/worker
+        run: pnpm exec wrangler d1 migrations apply "${{ steps.resources.outputs.d1_database_name }}" --remote --config "${{ steps.resources.outputs.config_path }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Deploy Worker and static assets
+        working-directory: apps/worker
+        run: |
+          pnpm exec wrangler deploy --config "${{ steps.resources.outputs.config_path }}" \
+            --var D1_DATABASE_NAME:${D1_DATABASE_NAME} \
+            --var D1_DATABASE_ID:${D1_DATABASE_ID} \
+            --var R2_ACCOUNT_ID:${CLOUDFLARE_ACCOUNT_ID} \
+            --var R2_BUCKET_NAME:${R2_BUCKET_NAME} \
+            --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
+            --var RETENTION_HOURS:${RETENTION_HOURS} \
+            --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
+            --var FILE_LISTING_MODE:${FILE_LISTING_MODE} \
+            --var RUNTIME_MODE:${RUNTIME_MODE}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          D1_DATABASE_NAME: ${{ steps.resources.outputs.d1_database_name }}
+          D1_DATABASE_ID: ${{ steps.resources.outputs.d1_database_id }}
+          R2_BUCKET_NAME: ${{ steps.resources.outputs.r2_bucket_name }}
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
+          MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
+          FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
+          RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
+      - name: Sync Worker secrets
+        working-directory: apps/worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
+        run: |
+          if [ -n "${ADMIN_TOKEN}" ]; then
+            printf '%s' "${ADMIN_TOKEN}" | pnpm exec wrangler secret put ADMIN_TOKEN --config "${{ steps.resources.outputs.config_path }}"
+          fi
+          printf '%s' "${IP_HASH_SALT}" | pnpm exec wrangler secret put IP_HASH_SALT --config "${{ steps.resources.outputs.config_path }}"
+      - name: Provision R2 multipart credentials
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          R2_BUCKET_NAME: ${{ steps.resources.outputs.r2_bucket_name }}
+          WRANGLER_CONFIG_PATH: ${{ steps.resources.outputs.config_path }}
+        run: bash deploy/provision-r2-multipart-credentials.sh

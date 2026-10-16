@@ -35,14 +35,13 @@ Set secrets interactively or through a protected deployment environment. Do not 
 ```sh
 pnpm --filter @free-locker/worker exec wrangler secret put ADMIN_TOKEN
 pnpm --filter @free-locker/worker exec wrangler secret put IP_HASH_SALT
-pnpm --filter @free-locker/worker exec wrangler secret put R2_ACCESS_KEY_ID
-pnpm --filter @free-locker/worker exec wrangler secret put R2_SECRET_ACCESS_KEY
 ```
 
 Pass `R2_ACCOUNT_ID` to `wrangler deploy` as a non-secret variable. It is the same
-value as the Cloudflare account ID. The R2 signing key must be narrowly scoped to the
-transfer bucket and multipart operations. Use a short-lived, least-privilege token
-when Cloudflare supports it. No client receives this secret.
+value as the Cloudflare account ID. For manual deployments outside the included
+workflow, also set the two R2 multipart secrets (`R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`) from a narrowly scoped R2 API token created in the
+dashboard. No client receives these secrets.
 
 ## Local development
 
@@ -76,23 +75,41 @@ Attach a custom domain through Workers and set `PUBLIC_BASE_URL` to its HTTPS or
 
 ## GitHub Actions
 
-The workflow deploys through the GitHub `prod` environment, creates the
-`free-locker` R2 bucket when it is missing, and synchronizes the following GitHub
-environment secrets to the production Worker:
+The workflow deploys through the GitHub `prod` environment. It first deploys a
+minimal Worker that returns `503 Service Unavailable`, with the expected
+`D1_DATABASE_NAME` and `R2_BUCKET_NAME` stored as Cloudflare plaintext runtime
+variables. The workflow reads those values from the active Cloudflare Worker
+version, uses Wrangler to verify or create the R2 bucket and D1 database, then
+writes a production-only Wrangler config containing the resolved bindings. This
+means every deployment has a short, intentional service interruption while the
+database migration runs.
+
+It synchronizes the following GitHub environment secrets to the production
+Worker:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 - `ADMIN_TOKEN` (optional)
 - `IP_HASH_SALT`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
 
-Create `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` manually in the Cloudflare R2
-dashboard before the first deployment. The permanent secret access key is displayed
-only once and cannot be retrieved or minted through the Cloudflare API. Scope the
-credential to Object Read & Write for the `free-locker` bucket.
+The R2 multipart credentials are provisioned automatically: after deploying, the
+workflow checks the Worker's existing secrets and, when `R2_ACCESS_KEY_ID` is
+and `R2_SECRET_ACCESS_KEY` are both missing, creates a permanent R2 API token
+scoped to the configured bucket through the Cloudflare API and stores the derived
+access key and secret (`sha256` of the token value) as Worker secrets. To rotate
+the credentials, delete both Worker secrets and rerun the workflow. A partial
+keypair is treated as an error so it cannot be used accidentally.
 
 The workflow uses `CLOUDFLARE_ACCOUNT_ID` as the Worker’s `R2_ACCOUNT_ID`.
+
+Its production order is:
+
+1. Deploy the bootstrap Worker and its Cloudflare runtime metadata.
+2. Read `D1_DATABASE_NAME` and `R2_BUCKET_NAME` from the active Cloudflare Worker version, then verify or create R2 and D1 resources with Wrangler.
+3. Apply D1 migrations.
+4. Deploy the Worker and static assets with the resolved D1/R2 bindings and runtime metadata.
+5. Synchronize Worker secrets.
+6. Provision the R2 multipart credential pair.
 
 Configure the following non-secret GitHub environment variables in `prod`. The
 workflow passes them to Wrangler as Worker variables:
@@ -103,11 +120,17 @@ workflow passes them to Wrangler as Worker variables:
 - `FILE_LISTING_MODE=enabled`
 - `RUNTIME_MODE=cloudflare`
 
-Grant the deployment API token Account-level R2 Storage `Edit` in addition to the
-Workers Scripts, D1, and Account Settings permissions. The deploy workflow runs only
+The workflow does not persist resource identifiers in GitHub. The bootstrap
+Worker stores the resource names in Cloudflare; the final Worker stores
+`D1_DATABASE_NAME`, `D1_DATABASE_ID`, and `R2_BUCKET_NAME` there as runtime
+variables. R2 buckets are identified by name rather than a UUID. The default
+R2 bucket name is `free-locker`.
+
+Grant the deployment API token Account-level R2 Storage `Edit` and User-level API
+Tokens `Edit` in addition to the Workers Scripts, D1, and Account Settings
+permissions. The deploy workflow runs only
 on `main` pushes or manual dispatch, never on pull requests. Require environment
-approval for production. The repository configuration still needs the real D1 ID
-before the workflow can deploy.
+approval for production.
 
 ## Rollback
 

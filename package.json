@@ -12,6 +12,7 @@
   "scripts": {
     "build": "pnpm --filter @free-locker/shared build && pnpm --filter @free-locker/web build && pnpm --filter @free-locker/cli build && pnpm --filter @free-locker/worker build",
     "dev": "pnpm --parallel --filter @free-locker/web --filter @free-locker/worker run dev",
+    "prepare": "husky",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm --recursive run lint",
@@ -33,6 +34,7 @@
     "@vitejs/plugin-react": "^5.0.2",
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
     "playwright": "^1.55.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",

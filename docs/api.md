@@ -43,17 +43,17 @@ All versioned API errors use:
 
 ## Files and downloads
 
-| Method and path                  | Behavior                                                                      |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `GET /api/v1/files/:id`          | Safe public metadata only. No object key, credentials, or storage internals.  |
-| `GET /api/v1/config`             | Public UI capabilities, including configured file-listing mode.               |
+| Method and path                  | Behavior                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `GET /api/v1/files/:id`          | Safe public metadata only. No object key, credentials, or storage internals.               |
+| `GET /api/v1/config`             | Public UI capabilities, including configured file-listing mode.                            |
 | `GET /api/v1/file_browser`       | Mode-gated active file table JSON: opaque ID, name, size, upload date/IP, link, and count. |
-| `GET /help`                      | Plain-text command-line reference suitable for `curl -L`.                     |
-| `GET /file_browser`              | Mode-gated browser route; redirects to `/#/file_browser` or returns JSON.     |
-| `HEAD /:id/:filename`            | Metadata headers; does not spend an allowance.                                |
-| `GET /:id/:filename`             | Reserves an authorization and returns a 302 to the temporary grant.           |
-| `GET /download/:grant/:filename` | Streams attachment content; Range requests are valid only on a grant.         |
-| `GET /healthz`                   | Minimal health response.                                                      |
+| `GET /help`                      | Plain-text command-line reference suitable for `curl -L`.                                  |
+| `GET /file_browser`              | Mode-gated browser route; redirects to `/#/file_browser` or returns JSON.                  |
+| `HEAD /:id/:filename`            | Metadata headers; does not spend an allowance.                                             |
+| `GET /:id/:filename`             | Reserves an authorization and returns a 302 to the temporary grant.                        |
+| `GET /download/:grant/:filename` | Streams attachment content; Range requests are valid only on a grant.                      |
+| `GET /healthz`                   | Minimal health response.                                                                   |
 
 Expired, revoked, exhausted, and unavailable shares return `410` or `404` as appropriate. Download streams use attachment disposition, `application/octet-stream`, `nosniff`, and `Cache-Control: no-store`.
 

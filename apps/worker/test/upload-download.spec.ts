@@ -62,6 +62,21 @@ describe('small file transfer', () => {
     expect(listingResponse.status).toBe(404);
   });
 
+  it('accepts curl -T uploads that use the filename as the root path', async () => {
+    const response = await request('http://free-locker.test/README.md', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Length': '8',
+        'Content-Type': 'text/markdown',
+      },
+      body: '# hello\n',
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ filename: 'README.md', success: true });
+  });
+
   it('lists active files only when the configured listing mode permits it', async () => {
     const uploadResponse = await request('http://free-locker.test/', {
       method: 'PUT',

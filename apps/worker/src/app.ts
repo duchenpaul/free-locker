@@ -209,6 +209,9 @@ export function createApp(): Hono<AppEnvironment> {
   app.put('/files/:filename', async (context) =>
     handleRawUpload(context.req.raw, context.env, context.req.param('filename')),
   );
+  app.put('/:filename', async (context) =>
+    handleRawUpload(context.req.raw, context.env, context.req.param('filename')),
+  );
   app.post('/api/v1/uploads', async (context) => {
     const contentType = context.req.header('content-type') ?? '';
     if (contentType.startsWith('application/json')) {
@@ -340,7 +343,7 @@ export function createApp(): Hono<AppEnvironment> {
   app.get('/file_browser', async (context) => {
     const config = getConfig(context.env);
     assertFileListingAvailable(config.fileListingMode);
-    if (isJsonResponseRequested(context.req.header('accept'))) {
+    if (isJsonResponseRequested(context.req.header('accept') ?? null)) {
       return context.json(await getPublicFileListing(context.env, config));
     }
     return context.redirect('/#/file_browser', 302);
@@ -372,6 +375,14 @@ export function createApp(): Hono<AppEnvironment> {
   });
 
   app.notFound((context) => {
+    const request = context.req.raw;
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      !new URL(request.url).pathname.startsWith('/api/')
+    ) {
+      return context.env.ASSETS.fetch(request);
+    }
+
     const wantsJson = responseWantsJson(context.req.raw);
     return errorResponse(
       new AppError('FILE_NOT_FOUND', 'The requested resource was not found.', 404),
