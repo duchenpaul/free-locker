@@ -60,6 +60,8 @@ jobs:
             --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
             --var RETENTION_HOURS:${RETENTION_HOURS} \
             --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
+            --var MAX_MULTIPART_UPLOAD_BYTES:${MAX_MULTIPART_UPLOAD_BYTES} \
+            --var MAX_SINGLE_UPLOAD_BYTES:${MAX_SINGLE_UPLOAD_BYTES} \
             --var FILE_LISTING_MODE:${FILE_LISTING_MODE} \
             --var RUNTIME_MODE:${RUNTIME_MODE}
         env:
@@ -70,6 +72,9 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
+          # Optional limits; fallback values mirror config/transfer.defaults.json.
+          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES || '10737418240' }}
+          MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES || '99614720' }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
       - name: Provision Worker resources
@@ -96,6 +101,8 @@ jobs:
             --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
             --var RETENTION_HOURS:${RETENTION_HOURS} \
             --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
+            --var MAX_MULTIPART_UPLOAD_BYTES:${MAX_MULTIPART_UPLOAD_BYTES} \
+            --var MAX_SINGLE_UPLOAD_BYTES:${MAX_SINGLE_UPLOAD_BYTES} \
             --var FILE_LISTING_MODE:${FILE_LISTING_MODE} \
             --var RUNTIME_MODE:${RUNTIME_MODE}
         env:
@@ -107,6 +114,9 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
+          # Optional limits; fallback values mirror config/transfer.defaults.json.
+          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES || '10737418240' }}
+          MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES || '99614720' }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
       - name: Sync Worker secrets

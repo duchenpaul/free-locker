@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
   errorEnvelopeSchema,
   multipartPartResponseSchema,
   publicAppConfigSchema,
@@ -10,8 +11,6 @@ import {
   type UploadSuccess,
   uploadSuccessSchema,
 } from '@free-locker/shared';
-
-const singleUploadLimitBytes = 95 * 1024 * 1024;
 
 interface SafeParser<T> {
   safeParse: (input: unknown) => { data: T; success: true } | { success: false };
@@ -280,7 +279,11 @@ function createMultipartUploadTask(file: File, onProgress: (percent: number) => 
   return { abort: () => controller.abort(), promise };
 }
 
-export function createUploadTask(file: File, onProgress: (percent: number) => void): UploadTask {
+export function createUploadTask(
+  file: File,
+  singleUploadLimitBytes: number = DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
+  onProgress: (percent: number) => void,
+): UploadTask {
   return file.size > singleUploadLimitBytes
     ? createMultipartUploadTask(file, onProgress)
     : createDirectUploadTask(file, onProgress);

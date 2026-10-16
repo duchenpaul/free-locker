@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isJsonResponseRequested, uploadSuccessSchema } from './index';
+import { isJsonResponseRequested, publicAppConfigSchema, uploadSuccessSchema } from './index';
 
 describe('shared API contracts', () => {
   it('recognizes JSON response negotiation', () => {
@@ -29,5 +29,21 @@ describe('shared API contracts', () => {
         id: 'opaque-id',
       }).success,
     ).toBe(false);
+  });
+
+  it('requires the public limit fields on the app configuration', () => {
+    const payload = {
+      success: true,
+      fileListingMode: 'disabled',
+      runtimeMode: 'local',
+      maxMultipartUploadBytes: 10737418240,
+      maxSingleUploadBytes: 99614720,
+      retentionHours: 24,
+      maxDownloads: 5,
+    };
+    expect(publicAppConfigSchema.safeParse(payload).success).toBe(true);
+    expect(publicAppConfigSchema.safeParse({ ...payload, maxDownloads: undefined }).success).toBe(
+      false,
+    );
   });
 });

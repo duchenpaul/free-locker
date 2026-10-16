@@ -9,6 +9,13 @@ import {
 } from 'react';
 
 import {
+  DEFAULT_MAX_DOWNLOADS,
+  DEFAULT_MAX_MULTIPART_UPLOAD_BYTES,
+  DEFAULT_RETENTION_HOURS,
+  DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
+} from '@free-locker/shared';
+
+import {
   createUploadTask,
   fetchPublicAppConfig,
   fetchPublicFileListing,
@@ -17,8 +24,6 @@ import {
   type UploadTask,
 } from './api';
 
-const singleUploadLimitBytes = 95 * 1024 * 1024;
-
 type StaticPage = 'help' | 'faq' | 'terms' | 'privacy' | 'disclaimer' | 'abuse' | 'contact';
 type AppPage = 'home' | 'file_browser' | StaticPage;
 type QueueStatus = 'ready' | 'uploading' | 'success' | 'failed' | 'cancelled';
@@ -26,6 +31,20 @@ type ThemePreference = 'system' | 'light' | 'dark';
 type FileListingMode = 'enabled' | 'hidden' | 'disabled';
 
 const themeStorageKey = 'free-locker-theme';
+
+interface Limits {
+  maxDownloads: number;
+  maxMultipartUploadBytes: number;
+  maxSingleUploadBytes: number;
+  retentionHours: number;
+}
+
+const defaultLimits: Limits = {
+  maxDownloads: DEFAULT_MAX_DOWNLOADS,
+  maxMultipartUploadBytes: DEFAULT_MAX_MULTIPART_UPLOAD_BYTES,
+  maxSingleUploadBytes: DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
+  retentionHours: DEFAULT_RETENTION_HOURS,
+};
 
 interface QueueItem {
   error?: string | undefined;
@@ -43,67 +62,71 @@ interface QueueItem {
   uploadMode: 'direct' | 'multipart';
 }
 
-const information: Record<StaticPage, { body: string[]; title: string }> = {
-  help: {
-    title: 'Help',
-    body: [
-      'Choose one or more files, then send them as independent temporary transfers. Each completed transfer receives its own link.',
-      'The same service accepts curl uploads. Use the command shown on the home screen, then share the returned download URL.',
-      'Direct uploads are limited to 95 MiB. Larger files use a direct-to-R2 multipart path and need a deployment with R2 signing credentials configured.',
-    ],
-  },
-  faq: {
-    title: 'Frequently asked questions',
-    body: [
-      'Transfers expire 24 hours after activation or after five distinct download authorizations, whichever arrives first.',
-      'A recipient can resume an already-authorized transfer for a short period. This helps retries and byte-range downloads but means a temporary grant may serve more than one physical request.',
-      'free-locker is a transfer service, not backup storage. Keep another copy of every important file.',
-    ],
-  },
-  terms: {
-    title: 'Terms of service',
-    body: [
-      'You are responsible for every file you upload and must have the right to share it. Do not use the service for unlawful, harmful, or infringing material.',
-      'We may revoke a transfer that violates these terms or is reported through the abuse process.',
-      'The service is offered on a best-effort basis and may apply size, request, storage, or rate limits to protect its operation.',
-    ],
-  },
-  privacy: {
-    title: 'Privacy policy',
-    body: [
-      'The service stores file metadata needed to deliver, expire, and remove temporary transfers. Uploaded file content is kept in private object storage.',
-      'For abuse prevention, operations may retain a salted, non-reversible network identifier and minimal request events for a limited period. Raw IP addresses are not retained indefinitely by the application.',
-      'Do not treat a temporary transfer link as a secret with end-to-end encryption. Anyone holding a valid link may be able to access it while it is available.',
-    ],
-  },
-  disclaimer: {
-    title: 'Disclaimer',
-    body: [
-      'Files are removed asynchronously after expiry or download exhaustion. Access is blocked immediately by the application, but physical deletion can occur later during scheduled cleanup.',
-      'The default deployment does not claim malware scanning. When a scanner is configured, files remain unavailable until it returns a result.',
-      'Availability, delivery speed, and storage capacity are limited by the configured Cloudflare resources and are not guaranteed.',
-    ],
-  },
-  abuse: {
-    title: 'Report abuse',
-    body: [
-      'To report a transfer, include the shared link, a concise explanation, and contact information only if you want a response.',
-      'Operators can revoke a reported transfer without exposing storage internals or allowing public deletion requests.',
-      'A structured abuse-report endpoint is available to deployments that enable it. Until then, contact the deployment operator directly.',
-    ],
-  },
-  contact: {
-    title: 'Contact',
-    body: [
-      'Deployment operators should publish a contact address here before offering a public instance.',
-      'Use the abuse-reporting route for urgent takedown requests rather than sending access tokens, passwords, or private data in a transfer link.',
-    ],
-  },
-};
+function information(limits: Limits): Record<StaticPage, { body: string[]; title: string }> {
+  return {
+    help: {
+      title: 'Help',
+      body: [
+        'Choose one or more files, then send them as independent temporary transfers. Each completed transfer receives its own link.',
+        'The same service accepts curl uploads. Use the command shown on the home screen, then share the returned download URL.',
+        `Direct uploads are limited to ${formatBytes(limits.maxSingleUploadBytes)}. Larger files use a direct-to-R2 multipart path and need a deployment with R2 signing credentials configured.`,
+      ],
+    },
+    faq: {
+      title: 'Frequently asked questions',
+      body: [
+        `Transfers expire ${formatRetention(limits.retentionHours)} after activation or after ${limits.maxDownloads} distinct download authorizations, whichever arrives first.`,
+        'A recipient can resume an already-authorized transfer for a short period. This helps retries and byte-range downloads but means a temporary grant may serve more than one physical request.',
+        'free-locker is a transfer service, not backup storage. Keep another copy of every important file.',
+      ],
+    },
+    terms: {
+      title: 'Terms of service',
+      body: [
+        'You are responsible for every file you upload and must have the right to share it. Do not use the service for unlawful, harmful, or infringing material.',
+        'We may revoke a transfer that violates these terms or is reported through the abuse process.',
+        'The service is offered on a best-effort basis and may apply size, request, storage, or rate limits to protect its operation.',
+      ],
+    },
+    privacy: {
+      title: 'Privacy policy',
+      body: [
+        'The service stores file metadata needed to deliver, expire, and remove temporary transfers. Uploaded file content is kept in private object storage.',
+        'For abuse prevention, operations may retain a salted, non-reversible network identifier and minimal request events for a limited period. Raw IP addresses are not retained indefinitely by the application.',
+        'Do not treat a temporary transfer link as a secret with end-to-end encryption. Anyone holding a valid link may be able to access it while it is available.',
+      ],
+    },
+    disclaimer: {
+      title: 'Disclaimer',
+      body: [
+        'Files are removed asynchronously after expiry or download exhaustion. Access is blocked immediately by the application, but physical deletion can occur later during scheduled cleanup.',
+        'The default deployment does not claim malware scanning. When a scanner is configured, files remain unavailable until it returns a result.',
+        'Availability, delivery speed, and storage capacity are limited by the configured Cloudflare resources and are not guaranteed.',
+      ],
+    },
+    abuse: {
+      title: 'Report abuse',
+      body: [
+        'To report a transfer, include the shared link, a concise explanation, and contact information only if you want a response.',
+        'Operators can revoke a reported transfer without exposing storage internals or allowing public deletion requests.',
+        'A structured abuse-report endpoint is available to deployments that enable it. Until then, contact the deployment operator directly.',
+      ],
+    },
+    contact: {
+      title: 'Contact',
+      body: [
+        'Deployment operators should publish a contact address here before offering a public instance.',
+        'Use the abuse-reporting route for urgent takedown requests rather than sending access tokens, passwords, or private data in a transfer link.',
+      ],
+    },
+  };
+}
 
 function currentPage(): AppPage {
   const value = window.location.hash.replace(/^#\/?/, '') as AppPage;
-  return Object.hasOwn(information, value) || value === 'home' || value === 'file_browser'
+  return Object.hasOwn(information(defaultLimits), value) ||
+    value === 'home' ||
+    value === 'file_browser'
     ? value
     : 'home';
 }
@@ -128,6 +151,14 @@ function formatBytes(bytes: number): string {
     unitIndex += 1;
   }
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatRetention(hours: number): string {
+  if (hours >= 24 && hours % 24 === 0) {
+    const days = hours / 24;
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+  return hours === 1 ? '1 hour' : `${hours} hours`;
 }
 
 function formatExpiration(value: string): string {
@@ -195,8 +226,8 @@ function HashLink({ children, page }: { children: string; page: AppPage }): Reac
   return <a href={page === 'home' ? '#/' : `#/${page}`}>{children}</a>;
 }
 
-function InfoPage({ page }: { page: StaticPage }): React.JSX.Element {
-  const content = information[page];
+function InfoPage({ limits, page }: { limits: Limits; page: StaticPage }): React.JSX.Element {
+  const content = information(limits)[page];
   return (
     <main className="info-shell">
       <section className="info-page" aria-labelledby="info-title">
@@ -211,7 +242,7 @@ function InfoPage({ page }: { page: StaticPage }): React.JSX.Element {
   );
 }
 
-function HelpPage(): React.JSX.Element {
+function HelpPage({ limits }: { limits: Limits }): React.JSX.Element {
   const host = window.location.origin;
   return (
     <main className="documentation" aria-labelledby="help-title">
@@ -236,10 +267,13 @@ function HelpPage(): React.JSX.Element {
       <section>
         <h2>Limits</h2>
         <ul>
-          <li>Direct upload: up to 95 MiB</li>
-          <li>Multipart upload: up to 10 GiB when signing is configured</li>
-          <li>Retention: 24 hours</li>
-          <li>Downloads: up to 5 authorizations</li>
+          <li>Direct upload: up to {formatBytes(limits.maxSingleUploadBytes)}</li>
+          <li>
+            Multipart upload: up to {formatBytes(limits.maxMultipartUploadBytes)} when signing is
+            configured
+          </li>
+          <li>Retention: {formatRetention(limits.retentionHours)}</li>
+          <li>Downloads: up to {limits.maxDownloads} authorizations</li>
         </ul>
       </section>
     </main>
@@ -494,7 +528,7 @@ function UploadQueueItem({
   );
 }
 
-function HomePage(): React.JSX.Element {
+function HomePage({ limits }: { limits: Limits }): React.JSX.Element {
   const fileInput = useRef<HTMLInputElement>(null);
   const activeUploads = useRef(new Map<string, UploadTask>());
   const [items, setItems] = useState<QueueItem[]>([]);
@@ -527,7 +561,7 @@ function HomePage(): React.JSX.Element {
       id: itemId(),
       progress: 0,
       status: 'ready',
-      uploadMode: file.size > singleUploadLimitBytes ? 'multipart' : 'direct',
+      uploadMode: file.size > limits.maxSingleUploadBytes ? 'multipart' : 'direct',
     }));
     setItems((currentItems) => [...currentItems, ...nextItems]);
   };
@@ -544,7 +578,7 @@ function HomePage(): React.JSX.Element {
       result: undefined,
       status: 'uploading',
     }));
-    const task = createUploadTask(item.file, (progress) => {
+    const task = createUploadTask(item.file, limits.maxSingleUploadBytes, (progress) => {
       updateItem(item.id, (current) =>
         current.status === 'uploading' ? { ...current, progress } : current,
       );
@@ -714,8 +748,9 @@ function HomePage(): React.JSX.Element {
         </p>
         <pre>curl --upload-file ./file.zip {host}</pre>
         <p>
-          Same one-command workflow, no account, an open link back. Files are kept for 1 day or 5
-          downloads, whichever comes first.
+          Same one-command workflow, no account, an open link back. Files are kept for{' '}
+          {formatRetention(limits.retentionHours)} or {limits.maxDownloads} downloads, whichever
+          comes first.
         </p>
 
         <h3>Why Use This CLI Upload Service?</h3>
@@ -772,6 +807,7 @@ function HomePage(): React.JSX.Element {
 export function App(): React.JSX.Element {
   const [page, setPage] = useState<AppPage>(currentPage);
   const [fileListingMode, setFileListingMode] = useState<FileListingMode>('disabled');
+  const [limits, setLimits] = useState<Limits>(defaultLimits);
   const [themePreference, setThemePreference] = useState<ThemePreference>(readThemePreference);
 
   useEffect(() => {
@@ -782,7 +818,15 @@ export function App(): React.JSX.Element {
 
   useEffect(() => {
     void fetchPublicAppConfig()
-      .then((config) => setFileListingMode(config.fileListingMode))
+      .then((config) => {
+        setFileListingMode(config.fileListingMode);
+        setLimits({
+          maxDownloads: config.maxDownloads,
+          maxMultipartUploadBytes: config.maxMultipartUploadBytes,
+          maxSingleUploadBytes: config.maxSingleUploadBytes,
+          retentionHours: config.retentionHours,
+        });
+      })
       .catch(() => setFileListingMode('disabled'));
   }, []);
 
@@ -834,19 +878,20 @@ export function App(): React.JSX.Element {
         <h1>free-locker | Bash Upload</h1>
         <p>
           Transfer files straight from your terminal for quick sharing between servers, desktops, or
-          mobile devices, up to 10 GiB each. Uploaded items are removed after 1 day or 5 downloads,
-          whichever comes first.
+          mobile devices, up to {formatBytes(limits.maxMultipartUploadBytes)} each. Uploaded items
+          are removed after {formatRetention(limits.retentionHours)} or {limits.maxDownloads}{' '}
+          downloads, whichever comes first.
         </p>
       </header>
 
       {page === 'home' ? (
-        <HomePage />
+        <HomePage limits={limits} />
       ) : page === 'file_browser' ? (
         <FilesPage />
       ) : page === 'help' ? (
-        <HelpPage />
+        <HelpPage limits={limits} />
       ) : (
-        <InfoPage page={page} />
+        <InfoPage limits={limits} page={page} />
       )}
 
       <footer>

@@ -32,13 +32,15 @@ Configure the GitHub `production` environment with the following variables and s
 
 ### Variables
 
-| Name                | Mandatory | Used for                                                                 | How to set                     |
-| ------------------- | --------- | ------------------------------------------------------------------------ | ------------------------------ |
-| `PUBLIC_BASE_URL`   | Yes       | Base URL used to build download links (e.g. `https://files.example.com`) | Your deployment's public URL   |
-| `RETENTION_HOURS`   | No        | Hours before a transfer expires (default 24)                             | Any positive integer           |
-| `MAX_DOWNLOADS`     | No        | Download authorizations per file (default 5)                             | Any positive integer           |
-| `FILE_LISTING_MODE` | No        | Public file listing: `enabled`, `hidden`, or `disabled`                  | One of the three values        |
-| `RUNTIME_MODE`      | Yes       | Deployment target: `cloudflare` (Worker) or `local`                      | `cloudflare` for this workflow |
+| Name                         | Mandatory | Used for                                                                 | How to set                     |
+| ---------------------------- | --------- | ------------------------------------------------------------------------ | ------------------------------ |
+| `PUBLIC_BASE_URL`            | Yes       | Base URL used to build download links (e.g. `https://files.example.com`) | Your deployment's public URL   |
+| `RETENTION_HOURS`            | No        | Hours before a transfer expires (default 24)                             | Any positive integer           |
+| `MAX_DOWNLOADS`              | No        | Download authorizations per file (default 5)                             | Any positive integer           |
+| `MAX_MULTIPART_UPLOAD_BYTES` | No        | Multipart upload ceiling (default 10737418240 = 10 GiB)                  | Any positive integer (bytes)   |
+| `MAX_SINGLE_UPLOAD_BYTES`    | No        | Per-file direct-upload limit (default 99614720 = 95 MiB)                 | Any positive integer (bytes)   |
+| `FILE_LISTING_MODE`          | No        | Public file listing: `enabled`, `hidden`, or `disabled`                  | One of the three values        |
+| `RUNTIME_MODE`               | Yes       | Deployment target: `cloudflare` (Worker) or `local`                      | `cloudflare` for this workflow |
 
 ### Secrets
 

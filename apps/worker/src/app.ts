@@ -310,6 +310,10 @@ export function createApp(): Hono<AppEnvironment> {
       success: true,
       fileListingMode: config.fileListingMode,
       runtimeMode: config.runtimeMode,
+      maxMultipartUploadBytes: config.maxMultipartUploadBytes,
+      maxSingleUploadBytes: config.maxSingleUploadBytes,
+      retentionHours: config.retentionHours,
+      maxDownloads: config.maxDownloads,
     });
   });
   app.get('/api/v1/file_browser', async (context) =>

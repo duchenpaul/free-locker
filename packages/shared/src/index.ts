@@ -6,6 +6,7 @@ export const DEFAULT_RETENTION_HOURS = 24;
 export const DEFAULT_MAX_DOWNLOADS = 5;
 export const DEFAULT_ENCRYPTED_ARCHIVE_MAX_DOWNLOADS = 1;
 export const DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES = 95 * 1024 * 1024;
+export const DEFAULT_MAX_MULTIPART_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
 export const DEFAULT_MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024;
 export const DEFAULT_DOWNLOAD_GRANT_TTL_SECONDS = 10 * 60;
 
@@ -123,6 +124,10 @@ export type PublicFileListingResponse = z.infer<typeof publicFileListingResponse
 export const publicAppConfigSchema = z.object({
   fileListingMode: fileListingModeSchema,
   runtimeMode: runtimeModeSchema,
+  maxMultipartUploadBytes: z.number().int().positive(),
+  maxSingleUploadBytes: z.number().int().positive(),
+  retentionHours: z.number().int().positive(),
+  maxDownloads: z.number().int().positive(),
   success: z.literal(true),
 });
 

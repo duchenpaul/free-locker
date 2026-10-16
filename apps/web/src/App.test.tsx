@@ -15,6 +15,19 @@ function requestPath(input: RequestInfo | URL): string {
   return typeof input === 'string' ? input : input.toString();
 }
 
+function appConfig(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    success: true,
+    fileListingMode: 'disabled',
+    runtimeMode: 'local',
+    maxMultipartUploadBytes: 10 * 1024 * 1024 * 1024,
+    maxSingleUploadBytes: 95 * 1024 * 1024,
+    retentionHours: 24,
+    maxDownloads: 5,
+    ...overrides,
+  };
+}
+
 describe('App', () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -24,7 +37,7 @@ describe('App', () => {
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
         if (requestPath(input) === '/api/v1/config') {
-          return jsonResponse({ success: true, fileListingMode: 'disabled', runtimeMode: 'local' });
+          return jsonResponse(appConfig());
         }
         return jsonResponse({ success: true, mode: 'disabled', files: [] });
       }),
@@ -56,6 +69,36 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /send 1 file/i })).toBeEnabled();
   });
 
+  it('renders limits from the public app configuration', async () => {
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      if (requestPath(input) === '/api/v1/config') {
+        return jsonResponse(
+          appConfig({
+            maxMultipartUploadBytes: 5 * 1024 * 1024 * 1024,
+            retentionHours: 48,
+            maxDownloads: 3,
+          }),
+        );
+      }
+      return jsonResponse({ success: true, mode: 'disabled', files: [] });
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByText(
+        /up to 5\.0 GiB each\. Uploaded items are removed after 2 days or 3 downloads, whichever comes first\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the default limits while the configuration has not loaded', () => {
+    render(<App />);
+
+    expect(screen.getByText(/up to 10 GiB each\./)).toBeInTheDocument();
+    expect(screen.getByText(/removed after 1 day or 5 downloads/)).toBeInTheDocument();
+  });
+
   it('toggles the display mode and persists the explicit choice', () => {
     render(<App />);
 
@@ -72,7 +115,7 @@ describe('App', () => {
   it('shows the Files link only when public listing is enabled', async () => {
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       if (requestPath(input) === '/api/v1/config') {
-        return jsonResponse({ success: true, fileListingMode: 'enabled', runtimeMode: 'local' });
+        return jsonResponse(appConfig({ fileListingMode: 'enabled' }));
       }
       return jsonResponse({ success: true, mode: 'enabled', files: [] });
     });
@@ -89,7 +132,7 @@ describe('App', () => {
     window.location.hash = '#/file_browser';
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       if (requestPath(input) === '/api/v1/config') {
-        return jsonResponse({ success: true, fileListingMode: 'enabled', runtimeMode: 'local' });
+        return jsonResponse(appConfig({ fileListingMode: 'enabled' }));
       }
       return jsonResponse({
         success: true,
@@ -122,7 +165,7 @@ describe('App', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       if (requestPath(input) === '/api/v1/config') {
-        return jsonResponse({ success: true, fileListingMode: 'enabled', runtimeMode: 'local' });
+        return jsonResponse(appConfig({ fileListingMode: 'enabled' }));
       }
       if (requestPath(input) === '/api/v1/admin/files/release-id/revoke') {
         return jsonResponse({ success: true });

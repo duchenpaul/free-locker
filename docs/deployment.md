@@ -117,6 +117,8 @@ workflow passes them to Wrangler as Worker variables:
 - `PUBLIC_BASE_URL=https://free-locker.noob.pp.ua`
 - `RETENTION_HOURS=24`
 - `MAX_DOWNLOADS=5`
+- `MAX_MULTIPART_UPLOAD_BYTES=10737418240` (optional, defaults to 10 GiB)
+- `MAX_SINGLE_UPLOAD_BYTES=99614720` (optional, defaults to 95 MiB)
 - `FILE_LISTING_MODE=enabled`
 - `RUNTIME_MODE=cloudflare`
 

@@ -24,4 +24,51 @@ describe('application routing', () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('free-locker');
   });
+
+  it('exposes configured limits through the public config endpoint', async () => {
+    const app = createApp();
+    const executionContext = createExecutionContext();
+
+    const response = await app.fetch(
+      new Request('https://free-locker.example/api/v1/config'),
+      {
+        MAX_MULTIPART_UPLOAD_BYTES: '5368709120',
+        MAX_SINGLE_UPLOAD_BYTES: '10485760',
+        RETENTION_HOURS: '48',
+        MAX_DOWNLOADS: '3',
+      } as unknown as Env,
+      executionContext,
+    );
+    await waitOnExecutionContext(executionContext);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: true,
+      fileListingMode: 'disabled',
+      runtimeMode: 'local',
+      maxMultipartUploadBytes: 5368709120,
+      maxSingleUploadBytes: 10485760,
+      retentionHours: 48,
+      maxDownloads: 3,
+    });
+  });
+
+  it('falls back to product defaults when limit variables are unset', async () => {
+    const app = createApp();
+    const executionContext = createExecutionContext();
+
+    const response = await app.fetch(
+      new Request('https://free-locker.example/api/v1/config'),
+      {} as unknown as Env,
+      executionContext,
+    );
+    await waitOnExecutionContext(executionContext);
+
+    expect(await response.json()).toMatchObject({
+      maxMultipartUploadBytes: 10737418240,
+      maxSingleUploadBytes: 99614720,
+      retentionHours: 24,
+      maxDownloads: 5,
+    });
+  });
 });
