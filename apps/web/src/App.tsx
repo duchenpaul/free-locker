@@ -10,7 +10,6 @@ import {
 
 import {
   DEFAULT_MAX_DOWNLOADS,
-  DEFAULT_MAX_MULTIPART_UPLOAD_BYTES,
   DEFAULT_RETENTION_HOURS,
   DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
 } from '@free-locker/shared';
@@ -34,14 +33,12 @@ const themeStorageKey = 'free-locker-theme';
 
 interface Limits {
   maxDownloads: number;
-  maxMultipartUploadBytes: number;
   maxSingleUploadBytes: number;
   retentionHours: number;
 }
 
 const defaultLimits: Limits = {
   maxDownloads: DEFAULT_MAX_DOWNLOADS,
-  maxMultipartUploadBytes: DEFAULT_MAX_MULTIPART_UPLOAD_BYTES,
   maxSingleUploadBytes: DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
   retentionHours: DEFAULT_RETENTION_HOURS,
 };
@@ -59,7 +56,6 @@ interface QueueItem {
       }
     | undefined;
   status: QueueStatus;
-  uploadMode: 'direct' | 'multipart';
 }
 
 function information(limits: Limits): Record<StaticPage, { body: string[]; title: string }> {
@@ -69,7 +65,7 @@ function information(limits: Limits): Record<StaticPage, { body: string[]; title
       body: [
         'Choose one or more files, then send them as independent temporary transfers. Each completed transfer receives its own link.',
         'The same service accepts curl uploads. Use the command shown on the home screen, then share the returned download URL.',
-        `Direct uploads are limited to ${formatBytes(limits.maxSingleUploadBytes)}. Larger files use a direct-to-R2 multipart path and need a deployment with R2 signing credentials configured.`,
+        `Each file is limited to ${formatBytes(limits.maxSingleUploadBytes)}.`,
       ],
     },
     faq: {
@@ -267,11 +263,7 @@ function HelpPage({ limits }: { limits: Limits }): React.JSX.Element {
       <section>
         <h2>Limits</h2>
         <ul>
-          <li>Direct upload: up to {formatBytes(limits.maxSingleUploadBytes)}</li>
-          <li>
-            Multipart upload: up to {formatBytes(limits.maxMultipartUploadBytes)} when signing is
-            configured
-          </li>
+          <li>File size: up to {formatBytes(limits.maxSingleUploadBytes)}</li>
           <li>Retention: {formatRetention(limits.retentionHours)}</li>
           <li>Downloads: up to {limits.maxDownloads} authorizations</li>
         </ul>
@@ -455,7 +447,6 @@ function UploadQueueItem({
           <span className="status-label">{statusLabel(item.status)}</span>
           <span className="queue-item__meta">{formatBytes(item.file.size)}</span>
         </div>
-        {item.uploadMode === 'multipart' ? <div className="queue-item__meta">Multipart</div> : null}
         {item.status === 'uploading' ? (
           <div className="up-bar" aria-label={`${item.file.name} upload progress`}>
             <div
@@ -561,7 +552,6 @@ function HomePage({ limits }: { limits: Limits }): React.JSX.Element {
       id: itemId(),
       progress: 0,
       status: 'ready',
-      uploadMode: file.size > limits.maxSingleUploadBytes ? 'multipart' : 'direct',
     }));
     setItems((currentItems) => [...currentItems, ...nextItems]);
   };
@@ -822,7 +812,6 @@ export function App(): React.JSX.Element {
         setFileListingMode(config.fileListingMode);
         setLimits({
           maxDownloads: config.maxDownloads,
-          maxMultipartUploadBytes: config.maxMultipartUploadBytes,
           maxSingleUploadBytes: config.maxSingleUploadBytes,
           retentionHours: config.retentionHours,
         });
@@ -878,9 +867,9 @@ export function App(): React.JSX.Element {
         <h1>free-locker | Bash Upload</h1>
         <p>
           Transfer files straight from your terminal for quick sharing between servers, desktops, or
-          mobile devices, up to {formatBytes(limits.maxMultipartUploadBytes)} each. Uploaded items
-          are removed after {formatRetention(limits.retentionHours)} or {limits.maxDownloads}{' '}
-          downloads, whichever comes first.
+          mobile devices, up to {formatBytes(limits.maxSingleUploadBytes)} each. Uploaded items are
+          removed after {formatRetention(limits.retentionHours)} or {limits.maxDownloads} downloads,
+          whichever comes first.
         </p>
       </header>
 

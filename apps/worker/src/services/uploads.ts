@@ -38,11 +38,7 @@ export async function uploadRawFile(
 ): Promise<UploadSuccess> {
   enforceContentLength(input.contentLength, config.maxSingleUploadBytes);
   if (input.contentLength === undefined) {
-    throw new AppError(
-      'BAD_REQUEST',
-      'Content-Length is required for a single-request upload. Use multipart upload for unknown-length streams.',
-      411,
-    );
+    throw new AppError('BAD_REQUEST', 'Content-Length is required for an upload.', 411);
   }
 
   const id = createOpaqueId(18);

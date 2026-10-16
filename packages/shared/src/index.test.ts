@@ -36,7 +36,6 @@ describe('shared API contracts', () => {
       success: true,
       fileListingMode: 'disabled',
       runtimeMode: 'local',
-      maxMultipartUploadBytes: 10737418240,
       maxSingleUploadBytes: 99614720,
       retentionHours: 24,
       maxDownloads: 5,

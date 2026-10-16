@@ -6,8 +6,6 @@ export const DEFAULT_RETENTION_HOURS = 24;
 export const DEFAULT_MAX_DOWNLOADS = 5;
 export const DEFAULT_ENCRYPTED_ARCHIVE_MAX_DOWNLOADS = 1;
 export const DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES = 95 * 1024 * 1024;
-export const DEFAULT_MAX_MULTIPART_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
-export const DEFAULT_MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024;
 export const DEFAULT_DOWNLOAD_GRANT_TTL_SECONDS = 10 * 60;
 
 export const errorCodeSchema = z.enum([
@@ -18,14 +16,11 @@ export const errorCodeSchema = z.enum([
   'DOWNLOAD_LIMIT_REACHED',
   'DOWNLOAD_GRANT_EXPIRED',
   'INVALID_FILENAME',
-  'INVALID_UPLOAD_STATE',
   'MALWARE_REJECTED',
-  'MULTIPART_UNAVAILABLE',
   'RATE_LIMITED',
   'STORAGE_QUOTA_REACHED',
   'UNAUTHORIZED',
   'UNSUPPORTED_MEDIA_TYPE',
-  'UPLOAD_INCOMPLETE',
   'UPLOAD_TOO_LARGE',
   'VALIDATION_ERROR',
   'INTERNAL_ERROR',
@@ -124,7 +119,6 @@ export type PublicFileListingResponse = z.infer<typeof publicFileListingResponse
 export const publicAppConfigSchema = z.object({
   fileListingMode: fileListingModeSchema,
   runtimeMode: runtimeModeSchema,
-  maxMultipartUploadBytes: z.number().int().positive(),
   maxSingleUploadBytes: z.number().int().positive(),
   retentionHours: z.number().int().positive(),
   maxDownloads: z.number().int().positive(),
@@ -132,50 +126,6 @@ export const publicAppConfigSchema = z.object({
 });
 
 export type PublicAppConfig = z.infer<typeof publicAppConfigSchema>;
-
-export const uploadIntentSchema = z.object({
-  filename: z.string().trim().min(1).max(255),
-  size: z.number().int().nonnegative(),
-  contentType: z.string().trim().min(1).max(255).optional(),
-});
-
-export type UploadIntent = z.infer<typeof uploadIntentSchema>;
-
-export const uploadSessionSchema = z.object({
-  success: z.literal(true),
-  uploadId: z.string().min(1),
-  capability: z.string().min(1),
-  uploadUrl: z.string().url().optional(),
-  mode: z.enum(['single', 'multipart']),
-  expiresAt: isoDateTimeSchema,
-  partSize: z.number().int().positive().optional(),
-});
-
-export type UploadSession = z.infer<typeof uploadSessionSchema>;
-
-export const multipartPartRequestSchema = z.object({
-  size: z.number().int().positive(),
-});
-
-export const multipartPartResponseSchema = z.object({
-  success: z.literal(true),
-  partNumber: z.number().int().positive(),
-  mode: z.enum(['direct', 'presigned']),
-  uploadUrl: z.string().min(1),
-  contentType: z.string().min(1),
-  expiresAt: isoDateTimeSchema,
-});
-
-export const multipartPartSchema = z.object({
-  partNumber: z.number().int().positive(),
-  etag: z.string().min(1).max(512),
-});
-
-export const completeMultipartUploadSchema = z.object({
-  parts: z.array(multipartPartSchema).min(1).max(10_000),
-});
-
-export type CompleteMultipartUpload = z.infer<typeof completeMultipartUploadSchema>;
 
 export const abuseReportSchema = z.object({
   fileId: z.string().trim().min(1).max(128),

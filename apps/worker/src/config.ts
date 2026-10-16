@@ -17,8 +17,6 @@ export interface AppConfig {
   fileListingMaxRows: number;
   fileListingMode: FileListingMode;
   maxDownloads: number;
-  maxMultipartUploadBytes: number;
-  multipartPartSizeBytes: number;
   maxSingleUploadBytes: number;
   retentionHours: number;
   runtimeMode: RuntimeMode;
@@ -67,14 +65,6 @@ export function getConfig(env: Env): AppConfig {
     ),
     fileListingMode: fileListingMode(env.FILE_LISTING_MODE),
     maxDownloads: positiveInteger(env.MAX_DOWNLOADS, transferDefaults.maxDownloads),
-    maxMultipartUploadBytes: positiveInteger(
-      env.MAX_MULTIPART_UPLOAD_BYTES,
-      transferDefaults.maxMultipartUploadBytes,
-    ),
-    multipartPartSizeBytes: positiveInteger(
-      env.MULTIPART_PART_SIZE_BYTES,
-      transferDefaults.multipartPartSizeBytes,
-    ),
     maxSingleUploadBytes: Math.min(
       positiveInteger(env.MAX_SINGLE_UPLOAD_BYTES, transferDefaults.maxSingleUploadBytes),
       platformSingleUploadLimitBytes,

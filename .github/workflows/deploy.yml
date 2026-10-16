@@ -37,7 +37,6 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
-          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES }}
           MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
@@ -62,7 +61,6 @@ jobs:
             --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
             --var RETENTION_HOURS:${RETENTION_HOURS} \
             --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
-            --var MAX_MULTIPART_UPLOAD_BYTES:${MAX_MULTIPART_UPLOAD_BYTES} \
             --var MAX_SINGLE_UPLOAD_BYTES:${MAX_SINGLE_UPLOAD_BYTES} \
             --var FILE_LISTING_MODE:${FILE_LISTING_MODE} \
             --var RUNTIME_MODE:${RUNTIME_MODE}
@@ -75,7 +73,6 @@ jobs:
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
           # Optional limits; fallback values mirror config/transfer.defaults.json.
-          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES || '10737418240' }}
           MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES || '99614720' }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
@@ -98,12 +95,10 @@ jobs:
           pnpm exec wrangler deploy --config "${{ steps.resources.outputs.config_path }}" \
             --var D1_DATABASE_NAME:${D1_DATABASE_NAME} \
             --var D1_DATABASE_ID:${D1_DATABASE_ID} \
-            --var R2_ACCOUNT_ID:${CLOUDFLARE_ACCOUNT_ID} \
             --var R2_BUCKET_NAME:${R2_BUCKET_NAME} \
             --var PUBLIC_BASE_URL:${PUBLIC_BASE_URL} \
             --var RETENTION_HOURS:${RETENTION_HOURS} \
             --var MAX_DOWNLOADS:${MAX_DOWNLOADS} \
-            --var MAX_MULTIPART_UPLOAD_BYTES:${MAX_MULTIPART_UPLOAD_BYTES} \
             --var MAX_SINGLE_UPLOAD_BYTES:${MAX_SINGLE_UPLOAD_BYTES} \
             --var FILE_LISTING_MODE:${FILE_LISTING_MODE} \
             --var RUNTIME_MODE:${RUNTIME_MODE}
@@ -117,7 +112,6 @@ jobs:
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
           # Optional limits; fallback values mirror config/transfer.defaults.json.
-          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES || '10737418240' }}
           MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES || '99614720' }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
@@ -133,10 +127,3 @@ jobs:
             printf '%s' "${ADMIN_TOKEN}" | pnpm exec wrangler secret put ADMIN_TOKEN --config "${{ steps.resources.outputs.config_path }}"
           fi
           printf '%s' "${IP_HASH_SALT}" | pnpm exec wrangler secret put IP_HASH_SALT --config "${{ steps.resources.outputs.config_path }}"
-      - name: Provision R2 multipart credentials
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          R2_BUCKET_NAME: ${{ steps.resources.outputs.r2_bucket_name }}
-          WRANGLER_CONFIG_PATH: ${{ steps.resources.outputs.config_path }}
-        run: bash deploy/provision-r2-multipart-credentials.sh

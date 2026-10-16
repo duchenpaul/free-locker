@@ -35,8 +35,7 @@ describe('small file transfer', () => {
     expect(body).toContain('curl http://localhost:8787 -T ./file.zip');
     expect(body).toContain('curl http://localhost:8787 --upload-file ./file.zip');
     expect(body).toContain('curl -L -O http://localhost:8787/XXXXX/file.zip');
-    expect(body).toContain('Max size     10 GiB per multipart upload');
-    expect(body).toContain('Direct       95 MiB through a single Worker request');
+    expect(body).toContain('Max size     95 MiB per upload');
     expect(body).toContain('default deployments do not claim malware scanning');
     expect(body).toContain('http://localhost:8787/#/abuse');
   });
@@ -177,64 +176,21 @@ describe('small file transfer', () => {
     });
   });
 
-  it('initiates multipart uploads locally without cloud signing credentials', async () => {
+  it('rejects uploads above the configured size limit with 413', async () => {
     const response = await request('http://free-locker.test/api/v1/uploads', {
       method: 'POST',
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Length': String(96 * 1024 * 1024),
+        'Content-Type': 'application/octet-stream',
       },
-      body: JSON.stringify({
-        filename: 'archive.tar',
-        size: 96 * 1024 * 1024,
-        contentType: 'application/x-tar',
-      }),
+      body: 'x',
     });
 
-    expect(response.status).toBe(201);
-    const session = (await response.json()) as { capability: string; uploadId: string };
-
-    const partResponse = await request(
-      `http://free-locker.test/api/v1/uploads/${session.uploadId}/multipart/parts/1`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Upload-Capability': session.capability,
-        },
-        body: JSON.stringify({ size: 16 * 1024 * 1024 }),
-      },
-    );
-    expect(partResponse.status).toBe(200);
-    expect(await partResponse.json()).toMatchObject({
-      mode: 'direct',
-      uploadUrl: `/api/v1/uploads/${session.uploadId}/multipart/parts/1/content`,
-    });
-  });
-
-  it('requires signing credentials in cloudflare runtime mode', async () => {
-    const cloudflareEnv = { ...(env as unknown as Env), RUNTIME_MODE: 'cloudflare' };
-    const response = await requestWithEnv(
-      'http://free-locker.test/api/v1/uploads',
-      {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: 'archive.tar',
-          size: 96 * 1024 * 1024,
-          contentType: 'application/x-tar',
-        }),
-      },
-      cloudflareEnv,
-    );
-
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(413);
     expect(await response.json()).toMatchObject({
       success: false,
-      error: { code: 'MULTIPART_UNAVAILABLE' },
+      error: { code: 'UPLOAD_TOO_LARGE' },
     });
   });
 

@@ -1,18 +1,14 @@
 #!/usr/bin/env node
 
 import { createReadStream } from 'node:fs';
-import { open, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 
 import {
-  DEFAULT_MULTIPART_PART_SIZE_BYTES,
   DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES,
   errorEnvelopeSchema,
-  multipartPartResponseSchema,
-  uploadSessionSchema,
   uploadSuccessSchema,
-  type CompleteMultipartUpload,
   type UploadSuccess,
 } from '@free-locker/shared';
 
@@ -36,7 +32,7 @@ function usage(): string {
   return [
     'Usage: free-locker <file> [--url https://locker.example] [--json]',
     '',
-    'Files up to 95 MiB use the simple PUT endpoint. Larger files use the multipart API.',
+    `Each file must be at most ${DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES / (1024 * 1024)} MiB. Larger files are rejected with 413 Payload Too Large.`,
   ].join('\n');
 }
 
@@ -136,141 +132,6 @@ async function uploadDirect(options: CliOptions, size: number): Promise<UploadSu
   return parseSuccess(response);
 }
 
-async function requestMultipartSession(options: CliOptions, size: number) {
-  const response = await fetch(`${options.baseUrl}/api/v1/uploads`, {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filename: path.basename(options.filePath),
-      size,
-      contentType: 'application/octet-stream',
-    }),
-  });
-  if (!response.ok) {
-    throw await parseResponseError(response);
-  }
-
-  const session = uploadSessionSchema.safeParse(await response.json());
-  if (
-    !session.success ||
-    session.data.mode !== 'multipart' ||
-    session.data.partSize === undefined
-  ) {
-    throw new CliError('The server returned an invalid multipart upload session.');
-  }
-
-  return session.data;
-}
-
-async function requestPartUrl(
-  options: CliOptions,
-  uploadId: string,
-  capability: string,
-  partNumber: number,
-  size: number,
-) {
-  const response = await fetch(
-    `${options.baseUrl}/api/v1/uploads/${uploadId}/multipart/parts/${partNumber}`,
-    {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Upload-Capability': capability,
-      },
-      body: JSON.stringify({ size }),
-    },
-  );
-  if (!response.ok) {
-    throw await parseResponseError(response);
-  }
-
-  const part = multipartPartResponseSchema.safeParse(await response.json());
-  if (!part.success) {
-    throw new CliError('The server returned an invalid signed part URL.');
-  }
-
-  return part.data;
-}
-
-async function abortMultipart(
-  options: CliOptions,
-  uploadId: string,
-  capability: string,
-): Promise<void> {
-  await fetch(`${options.baseUrl}/api/v1/uploads/${uploadId}/multipart/abort`, {
-    method: 'POST',
-    headers: { 'X-Upload-Capability': capability },
-  }).catch(() => undefined);
-}
-
-async function uploadMultipart(options: CliOptions, size: number): Promise<UploadSuccess> {
-  const session = await requestMultipartSession(options, size);
-  const partSize = session.partSize ?? DEFAULT_MULTIPART_PART_SIZE_BYTES;
-  const parts: CompleteMultipartUpload['parts'] = [];
-  const fileHandle = await open(options.filePath, 'r');
-
-  try {
-    let offset = 0;
-    let partNumber = 1;
-    while (offset < size) {
-      const partLength = Math.min(partSize, size - offset);
-      const buffer = Buffer.allocUnsafe(partLength);
-      const readResult = await fileHandle.read(buffer, 0, partLength, offset);
-      if (readResult.bytesRead !== partLength) {
-        throw new CliError('The file changed while it was being uploaded.');
-      }
-
-      const authorization = await requestPartUrl(
-        options,
-        session.uploadId,
-        session.capability,
-        partNumber,
-        partLength,
-      );
-      const partResponse = await fetch(authorization.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': authorization.contentType },
-        body: buffer,
-      });
-      if (!partResponse.ok) {
-        throw new CliError(
-          `R2 rejected multipart part ${partNumber} with HTTP ${partResponse.status}.`,
-        );
-      }
-
-      const etag = partResponse.headers.get('etag');
-      if (etag === null) {
-        throw new CliError(`R2 did not return an ETag for multipart part ${partNumber}.`);
-      }
-      parts.push({ partNumber, etag });
-      offset += partLength;
-      partNumber += 1;
-      process.stderr.write(`Uploaded ${Math.min(100, Math.round((offset / size) * 100))}%\r`);
-    }
-  } catch (error) {
-    await abortMultipart(options, session.uploadId, session.capability);
-    throw error;
-  } finally {
-    await fileHandle.close();
-  }
-
-  process.stderr.write('Uploaded 100%\n');
-  const completeResponse = await fetch(
-    `${options.baseUrl}/api/v1/uploads/${session.uploadId}/multipart/complete`,
-    {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Upload-Capability': session.capability,
-      },
-      body: JSON.stringify({ parts }),
-    },
-  );
-  return parseSuccess(completeResponse);
-}
-
 function printSuccess(result: UploadSuccess, json: boolean): void {
   if (json) {
     process.stdout.write(`${JSON.stringify(result)}\n`);
@@ -289,10 +150,13 @@ export async function run(argumentsList: string[]): Promise<void> {
     throw new CliError('The upload path must point to a regular file.');
   }
 
-  const result =
-    fileInfo.size <= DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES
-      ? await uploadDirect(options, fileInfo.size)
-      : await uploadMultipart(options, fileInfo.size);
+  if (fileInfo.size > DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES) {
+    throw new CliError(
+      `The file exceeds the ${DEFAULT_SINGLE_UPLOAD_LIMIT_BYTES / (1024 * 1024)} MiB upload limit.`,
+    );
+  }
+
+  const result = await uploadDirect(options, fileInfo.size);
   printSuccess(result, options.json);
 }
 

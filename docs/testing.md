@@ -17,19 +17,16 @@ Worker tests use `@cloudflare/vitest-plugin` with local Miniflare D1 and R2 bind
 - JSON response negotiation
 - safe filename handling and attachment headers
 - grant-backed downloads and HEAD non-consumption
-- truthful multipart-unavailable handling
+- oversized uploads rejected with 413
 - encrypted ZIP best-effort one-download policy
 - abuse reports, admin revocation, and rate limits
 - bounded expiration cleanup and R2 deletion
 
 ## Real Cloudflare tests
 
-Local emulation cannot prove presigned multipart `UploadPart` compatibility or deployed R2 CORS. Before enabling large uploads in production, use a dedicated test account/bucket to verify:
+Before enabling production use, verify with a dedicated test account/bucket:
 
-1. Signed URLs accept the exact configured `Content-Type`.
-2. Browser origins can read `ETag` through the configured R2 CORS policy.
-3. Completion verifies object size and activates a share.
-4. Abort removes incomplete multipart state.
-5. No public R2 URL bypasses the Worker download counter.
+1. A real upload round-trip works end to end against the deployed Worker.
+2. No public R2 URL bypasses the Worker download counter.
 
 Do not report a live integration test as passed until it has actually run with non-production test credentials.

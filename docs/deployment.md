@@ -37,15 +37,9 @@ pnpm --filter @free-locker/worker exec wrangler secret put ADMIN_TOKEN
 pnpm --filter @free-locker/worker exec wrangler secret put IP_HASH_SALT
 ```
 
-Pass `R2_ACCOUNT_ID` to `wrangler deploy` as a non-secret variable. It is the same
-value as the Cloudflare account ID. For manual deployments outside the included
-workflow, also set the two R2 multipart secrets (`R2_ACCESS_KEY_ID`,
-`R2_SECRET_ACCESS_KEY`) from a narrowly scoped R2 API token created in the
-dashboard. No client receives these secrets.
-
 ## Local development
 
-Edit `config/transfer.defaults.json` to set checked-in product defaults such as the 24-hour retention period, five-download allowance, 95 MiB Worker direct-upload limit, and 10 GiB multipart-upload ceiling. `MAX_*` values in `.dev.vars` or Wrangler environments are optional per-environment overrides; secrets still belong only in `.dev.vars` or Worker secrets.
+Edit `config/transfer.defaults.json` to set checked-in product defaults such as the 24-hour retention period, five-download allowance, and 95 MiB per-file upload limit. Uploads above the limit are rejected with `413 Payload Too Large`. `MAX_*` values in `.dev.vars` or Wrangler environments are optional per-environment overrides; secrets still belong only in `.dev.vars` or Worker secrets.
 
 `fileListingMode` defaults to `disabled`. Set it to `enabled` to expose a Files link on the homepage, or `hidden` to allow the direct `/file_browser` route without navigation. The listing includes uploader IP addresses as requested, so treat either non-disabled mode as an intentional privacy disclosure.
 
@@ -68,7 +62,7 @@ pnpm --filter @free-locker/worker build
 pnpm check
 pnpm --filter @free-locker/web build
 pnpm --filter @free-locker/worker exec wrangler d1 migrations apply free-locker --remote --config wrangler.jsonc
-pnpm --filter @free-locker/worker exec wrangler deploy --config wrangler.jsonc --var R2_ACCOUNT_ID:<cloudflare-account-id>
+pnpm --filter @free-locker/worker exec wrangler deploy --config wrangler.jsonc
 ```
 
 Attach a custom domain through Workers and set `PUBLIC_BASE_URL` to its HTTPS origin. A Workers.dev subdomain also works for testing. Verify that the deployed Worker fails closed if the daily Workers quota is exhausted; a security-sensitive route must not fall through to an unprotected origin.
@@ -92,16 +86,6 @@ Worker:
 - `ADMIN_TOKEN` (optional)
 - `IP_HASH_SALT`
 
-The R2 multipart credentials are provisioned automatically: after deploying, the
-workflow checks the Worker's existing secrets and, when `R2_ACCESS_KEY_ID` is
-and `R2_SECRET_ACCESS_KEY` are both missing, creates a permanent R2 API token
-scoped to the configured bucket through the Cloudflare API and stores the derived
-access key and secret (`sha256` of the token value) as Worker secrets. To rotate
-the credentials, delete both Worker secrets and rerun the workflow. A partial
-keypair is treated as an error so it cannot be used accidentally.
-
-The workflow uses `CLOUDFLARE_ACCOUNT_ID` as the Worker’s `R2_ACCOUNT_ID`.
-
 Its production order is:
 
 1. Deploy the bootstrap Worker and its Cloudflare runtime metadata.
@@ -109,7 +93,6 @@ Its production order is:
 3. Apply D1 migrations.
 4. Deploy the Worker and static assets with the resolved D1/R2 bindings and runtime metadata.
 5. Synchronize Worker secrets.
-6. Provision the R2 multipart credential pair.
 
 Configure the following non-secret GitHub environment variables in `prod`. The
 workflow passes them to Wrangler as Worker variables:
@@ -117,8 +100,7 @@ workflow passes them to Wrangler as Worker variables:
 - `PUBLIC_BASE_URL=https://free-locker.noob.pp.ua`
 - `RETENTION_HOURS=24`
 - `MAX_DOWNLOADS=5`
-- `MAX_MULTIPART_UPLOAD_BYTES=10737418240` (optional, defaults to 10 GiB)
-- `MAX_SINGLE_UPLOAD_BYTES=99614720` (optional, defaults to 95 MiB)
+- `MAX_SINGLE_UPLOAD_BYTES=99614720` (optional, defaults to 95 MiB; larger uploads get `413 Payload Too Large`)
 - `FILE_LISTING_MODE=enabled`
 - `RUNTIME_MODE=cloudflare`
 

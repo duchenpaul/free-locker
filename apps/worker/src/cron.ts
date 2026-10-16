@@ -5,47 +5,10 @@ interface CleanupFileRow {
   object_key: string;
 }
 
-interface ExpiredSessionRow {
-  id: string;
-  object_key: string;
-  r2_multipart_upload_id: string;
-}
-
 const cleanupBatchSize = 10;
 
 export async function runCleanup(env: Env): Promise<void> {
   const now = new Date().toISOString();
-  const expiredSessions = await env.DB.prepare(
-    `SELECT s.id, f.object_key, s.r2_multipart_upload_id
-     FROM upload_sessions s JOIN files f ON f.id = s.file_id
-     WHERE s.status IN ('created', 'uploading')
-       AND s.expires_at <= ?
-       AND s.r2_multipart_upload_id IS NOT NULL
-     LIMIT ?`,
-  )
-    .bind(now, cleanupBatchSize)
-    .all<ExpiredSessionRow>();
-
-  for (const session of expiredSessions.results) {
-    try {
-      await env.FILES_BUCKET.resumeMultipartUpload(
-        session.object_key,
-        session.r2_multipart_upload_id,
-      ).abort();
-      await env.DB.batch([
-        env.DB.prepare(`UPDATE upload_sessions SET status = 'expired' WHERE id = ?`).bind(
-          session.id,
-        ),
-        env.DB.prepare(
-          `UPDATE files SET lifecycle_status = 'failed', updated_at = ?
-             WHERE id = (SELECT file_id FROM upload_sessions WHERE id = ?)`,
-        ).bind(now, session.id),
-      ]);
-    } catch {
-      // A later bounded cleanup pass retries a failed R2 abort.
-    }
-  }
-
   const files = await env.DB.prepare(
     `SELECT id, object_key FROM files
      WHERE deleted_at IS NULL

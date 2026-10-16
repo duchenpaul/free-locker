@@ -76,27 +76,9 @@ interface PublicFileListingRow {
   upload_ip: string | null;
 }
 
-export interface MultipartUploadSession extends FileRecord {
-  expectedSizeBytes: number;
-  idempotencyKey: string | null;
-  multipartUploadId: string;
-  sessionId: string;
-  sessionStatus: 'created' | 'uploading' | 'completed' | 'aborted' | 'expired' | 'failed';
-  sessionExpiresAt: string;
-}
-
 interface DownloadGrantFileRow extends FileRow {
   grant_expires_at: string;
   grant_id: string;
-}
-
-interface MultipartUploadSessionRow extends FileRow {
-  expected_size_bytes: number;
-  idempotency_key: string | null;
-  r2_multipart_upload_id: string | null;
-  session_expires_at: string;
-  session_id: string;
-  session_status: MultipartUploadSession['sessionStatus'];
 }
 
 function mapFile(row: FileRow): FileRecord {
@@ -170,120 +152,6 @@ export async function markFileFailed(env: Env, id: string, updatedAt: string): P
   await env.DB.prepare(`UPDATE files SET lifecycle_status = 'failed', updated_at = ? WHERE id = ?`)
     .bind(updatedAt, id)
     .run();
-}
-
-export async function insertMultipartUploadSession(
-  env: Env,
-  input: {
-    capabilityHash: string;
-    createdAt: string;
-    expiresAt: string;
-    fileId: string;
-    idempotencyKey?: string;
-    multipartUploadId: string;
-    sessionId: string;
-    sizeBytes: number;
-  },
-): Promise<void> {
-  await env.DB.prepare(
-    `INSERT INTO upload_sessions (
-      id, file_id, capability_hash, mode, r2_multipart_upload_id, expected_size_bytes,
-      idempotency_key, created_at, expires_at, status
-    ) VALUES (?, ?, ?, 'multipart', ?, ?, ?, ?, ?, 'created')`,
-  )
-    .bind(
-      input.sessionId,
-      input.fileId,
-      input.capabilityHash,
-      input.multipartUploadId,
-      input.sizeBytes,
-      input.idempotencyKey ?? null,
-      input.createdAt,
-      input.expiresAt,
-    )
-    .run();
-}
-
-export async function findMultipartUploadSession(
-  env: Env,
-  sessionId: string,
-  capabilityHash: string,
-  now: string,
-): Promise<MultipartUploadSession | null> {
-  const row = await env.DB.prepare(
-    `SELECT
-      s.id AS session_id, s.r2_multipart_upload_id, s.expected_size_bytes,
-      s.expires_at AS session_expires_at, s.status AS session_status, s.idempotency_key,
-      f.id, f.public_id, f.object_key, f.original_filename, f.display_filename,
-      f.content_type, f.size_bytes, f.created_at, f.expires_at, f.max_downloads,
-      f.successful_downloads, f.encryption_status, f.scan_status, f.lifecycle_status
-     FROM upload_sessions s
-     JOIN files f ON f.id = s.file_id
-     WHERE s.id = ?
-       AND s.capability_hash = ?
-       AND s.mode = 'multipart'
-       AND s.status IN ('created', 'uploading')
-       AND s.expires_at > ?`,
-  )
-    .bind(sessionId, capabilityHash, now)
-    .first<MultipartUploadSessionRow>();
-
-  if (row === null || row.r2_multipart_upload_id === null) {
-    return null;
-  }
-
-  return {
-    ...mapFile(row),
-    expectedSizeBytes: row.expected_size_bytes,
-    idempotencyKey: row.idempotency_key,
-    multipartUploadId: row.r2_multipart_upload_id,
-    sessionExpiresAt: row.session_expires_at,
-    sessionId: row.session_id,
-    sessionStatus: row.session_status,
-  };
-}
-
-export async function completeMultipartUploadSession(
-  env: Env,
-  sessionId: string,
-  sizeBytes: number,
-  encryptionStatus: EncryptionStatus,
-  maxDownloads: number,
-  updatedAt: string,
-): Promise<void> {
-  const results = await env.DB.batch([
-    env.DB.prepare(
-      `UPDATE files
-         SET size_bytes = ?, encryption_status = ?, max_downloads = ?, lifecycle_status = 'active', updated_at = ?
-         WHERE id = (
-           SELECT file_id FROM upload_sessions WHERE id = ? AND status IN ('created', 'uploading')
-         ) AND lifecycle_status = 'uploading'`,
-    ).bind(sizeBytes, encryptionStatus, maxDownloads, updatedAt, sessionId),
-    env.DB.prepare(
-      `UPDATE upload_sessions SET status = 'completed', completed_at = ?
-         WHERE id = ? AND status IN ('created', 'uploading')`,
-    ).bind(updatedAt, sessionId),
-  ]);
-
-  if (results[0]?.meta.changes !== 1 || results[1]?.meta.changes !== 1) {
-    throw new Error('Multipart upload state changed before completion.');
-  }
-}
-
-export async function abortMultipartUploadSession(
-  env: Env,
-  sessionId: string,
-  updatedAt: string,
-): Promise<void> {
-  await env.DB.batch([
-    env.DB.prepare(
-      `UPDATE upload_sessions SET status = 'aborted', aborted_at = ? WHERE id = ?`,
-    ).bind(updatedAt, sessionId),
-    env.DB.prepare(
-      `UPDATE files SET lifecycle_status = 'failed', updated_at = ?
-         WHERE id = (SELECT file_id FROM upload_sessions WHERE id = ?)`,
-    ).bind(updatedAt, sessionId),
-  ]);
 }
 
 export async function findFileByPublicId(env: Env, publicId: string): Promise<FileRecord | null> {

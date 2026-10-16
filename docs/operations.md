@@ -2,9 +2,8 @@
 
 ## Cleanup
 
-The Cron trigger runs every 15 minutes. Each pass is bounded to ten multipart sessions and ten file records so it stays within Free Worker CPU limits.
+The Cron trigger runs every 15 minutes. Each pass is bounded to ten file records so it stays within Free Worker CPU limits.
 
-1. Expired multipart sessions are aborted and their file state becomes `failed`.
 2. Expired, exhausted, revoked, and failed files are claimed with `cleanup_pending`.
 3. The R2 object is deleted.
 4. D1 records become `deleted`; deletion failures are recorded for retry.
@@ -21,7 +20,7 @@ Keep abuse reports and minimal audit data only for the configured period needed 
 ## Quotas and monitoring
 
 - Watch Worker request count, CPU errors, and `1027` quota errors.
-- Watch R2 storage, Class A writes, Class B reads, and multipart aborts.
+- Watch R2 storage, Class A writes, and Class B reads.
 - Watch D1 reads/writes, storage, overloaded errors, and query duration.
 - Alert operationally before free allowances are exhausted; a free plan is not unlimited capacity.
 - Use configured per-IP request windows and active-share limits to slow abuse. IPs behind NAT or IPv6 privacy rotation are imperfect controls.

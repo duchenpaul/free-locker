@@ -2,17 +2,12 @@ PUBLIC_BASE_URL=http://localhost:8787
 # Product defaults live in config/transfer.defaults.json. These are optional per-environment overrides.
 # RUNTIME_MODE=local
 # MAX_SINGLE_UPLOAD_BYTES=99614720
-# MAX_MULTIPART_UPLOAD_BYTES=10737418240
 # RETENTION_HOURS=24
 # MAX_DOWNLOADS=5
 # FILE_LISTING_MODE=disabled
 # FILE_LISTING_MAX_ROWS=100
 # DOWNLOAD_GRANT_TTL_SECONDS=600
-# MULTIPART_PART_SIZE_BYTES=16777216
 # UPLOAD_RATE_LIMIT_PER_HOUR=20
 IP_HASH_SALT=replace-with-a-local-random-secret
 ADMIN_TOKEN=replace-with-a-local-random-secret
-R2_ACCOUNT_ID=replace-with-r2-account-id
-R2_ACCESS_KEY_ID=replace-with-scoped-r2-access-key-id
-R2_SECRET_ACCESS_KEY=replace-with-scoped-r2-secret-access-key
 R2_BUCKET_NAME=free-locker

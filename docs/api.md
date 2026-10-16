@@ -15,16 +15,12 @@ All versioned API errors use:
 
 ## Uploads
 
-| Method and path                                        | Purpose                       | Request                                                         | Success                                                                             |
-| ------------------------------------------------------ | ----------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `PUT /`                                                | CLI single upload             | Raw body, `Content-Length`; filename from `Content-Disposition` | Plain download instruction, or `UploadSuccess` JSON with `Accept: application/json` |
-| `PUT` or `POST /files[/:filename]`                     | Raw upload alias              | Raw body, `Content-Length`; optional safe path filename         | Same as root PUT; `GET /files` is intentionally not a listing endpoint              |
-| `POST /:filename`                                      | Raw-byte compatibility upload | Raw body and safe path filename                                 | Same as root PUT                                                                    |
-| `POST /api/v1/uploads`                                 | Browser direct upload         | Raw body + content disposition                                  | `201 UploadSuccess` JSON                                                            |
-| `POST /api/v1/uploads`                                 | Multipart intent              | JSON `{ filename, size, contentType }`                          | `201` session `{ uploadId, capability, mode, expiresAt, partSize }`                 |
-| `POST /api/v1/uploads/:id/multipart/parts/:partNumber` | Authorize one part            | `X-Upload-Capability`, JSON `{ size }`                          | Signed R2 PUT URL, exact content type, expiry                                       |
-| `POST /api/v1/uploads/:id/multipart/complete`          | Verify and activate           | Capability + ordered `{ parts: [{ partNumber, etag }] }`        | `UploadSuccess` JSON                                                                |
-| `POST /api/v1/uploads/:id/multipart/abort`             | Abort incomplete upload       | Capability                                                      | `204`                                                                               |
+| Method and path                    | Purpose                       | Request                                                         | Success                                                                             |
+| ---------------------------------- | ----------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `PUT /`                            | CLI single upload             | Raw body, `Content-Length`; filename from `Content-Disposition` | Plain download instruction, or `UploadSuccess` JSON with `Accept: application/json` |
+| `PUT` or `POST /files[/:filename]` | Raw upload alias              | Raw body, `Content-Length`; optional safe path filename         | Same as root PUT; `GET /files` is intentionally not a listing endpoint              |
+| `POST /:filename`                  | Raw-byte compatibility upload | Raw body and safe path filename                                 | Same as root PUT                                                                    |
+| `POST /api/v1/uploads`             | Browser direct upload         | Raw body + content disposition                                  | `201 UploadSuccess` JSON                                                            |
 
 `UploadSuccess` is stable JSON:
 

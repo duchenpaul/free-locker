@@ -20,7 +20,6 @@ function appConfig(overrides: Record<string, unknown> = {}): Record<string, unkn
     success: true,
     fileListingMode: 'disabled',
     runtimeMode: 'local',
-    maxMultipartUploadBytes: 10 * 1024 * 1024 * 1024,
     maxSingleUploadBytes: 95 * 1024 * 1024,
     retentionHours: 24,
     maxDownloads: 5,
@@ -74,7 +73,7 @@ describe('App', () => {
       if (requestPath(input) === '/api/v1/config') {
         return jsonResponse(
           appConfig({
-            maxMultipartUploadBytes: 5 * 1024 * 1024 * 1024,
+            maxSingleUploadBytes: 5 * 1024 * 1024 * 1024,
             retentionHours: 48,
             maxDownloads: 3,
           }),
@@ -95,7 +94,7 @@ describe('App', () => {
   it('shows the default limits while the configuration has not loaded', () => {
     render(<App />);
 
-    expect(screen.getByText(/up to 10 GiB each\./)).toBeInTheDocument();
+    expect(screen.getByText(/up to 95 MiB each\./)).toBeInTheDocument();
     expect(screen.getByText(/removed after 1 day or 5 downloads/)).toBeInTheDocument();
   });
 

@@ -7,7 +7,7 @@
 - Object keys are server-generated and unrelated to filenames. Display filenames are normalized and never used as storage paths.
 - Direct downloads stream via the Worker with attachment disposition, `X-Content-Type-Options: nosniff`, no-store caching, and an opaque object key.
 - Download authorization is a D1 conditional update plus grant creation. `HEAD` does not reserve a download.
-- Uploads enforce server-side content-length and stream byte limits; multipart sessions validate part sizes/counts and object size after completion.
+- Uploads enforce server-side content-length and stream byte limits; oversized files are rejected with `413`.
 - D1 prepared statements bind client values. API errors never contain SQL, stack traces, storage keys, grants, or secrets.
 - Operator revocation needs a constant-time bearer-token comparison. Public abuse reporting cannot delete files.
 - Per-IP rate windows store a salted hash and are removed during cleanup.

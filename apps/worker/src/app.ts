@@ -1,22 +1,10 @@
-import {
-  isJsonResponseRequested,
-  multipartPartRequestSchema,
-  uploadIntentSchema,
-  type UploadSuccess,
-} from '@free-locker/shared';
+import { isJsonResponseRequested, type UploadSuccess } from '@free-locker/shared';
 import { Hono } from 'hono';
 
 import { getConfig } from './config';
 import type { Env } from './env';
 import { AppError, isAppError } from './errors';
 import { createDownloadGrant, getFileMetadata, serveDownloadGrant } from './services/downloads';
-import {
-  abortMultipartSession,
-  completeMultipartSession,
-  createMultipartPartUrl,
-  createMultipartSession,
-  uploadMultipartPart,
-} from './services/multipart';
 import { assertFileListingAvailable, getPublicFileListing } from './services/file-listing';
 import { revokeFile, submitAbuseReport } from './services/operations';
 import { enforceUploadRateLimit } from './services/rate-limit';
@@ -121,9 +109,7 @@ function responseForHelp(env: Env): Response {
     `  curl ${baseUrl} --upload-file ./file.zip`,
     '',
     'LIMITS',
-    `  Max size     ${formatByteLimit(config.maxMultipartUploadBytes)} per multipart upload`,
-    `  Direct       ${formatByteLimit(config.maxSingleUploadBytes)} through a single Worker request`,
-    '  Large files  multipart upload when R2 signing is configured',
+    `  Max size     ${formatByteLimit(config.maxSingleUploadBytes)} per upload`,
     `  Kept for     ${retention}  Downloads    ${downloads}, then the link is gone`,
     '  Encrypted    detected encrypted ZIP archives are limited to a single download',
     '  Malware      default deployments do not claim malware scanning',
@@ -212,86 +198,9 @@ export function createApp(): Hono<AppEnvironment> {
   app.put('/:filename', async (context) =>
     handleRawUpload(context.req.raw, context.env, context.req.param('filename')),
   );
-  app.post('/api/v1/uploads', async (context) => {
-    const contentType = context.req.header('content-type') ?? '';
-    if (contentType.startsWith('application/json')) {
-      const intent = uploadIntentSchema.safeParse(await context.req.json());
-      if (!intent.success) {
-        throw new AppError('VALIDATION_ERROR', 'The upload intent is invalid.', 400);
-      }
-      const config = getConfig(context.env);
-      await enforceUploadRateLimit(
-        context.env,
-        config,
-        context.req.header('cf-connecting-ip') ?? undefined,
-      );
-      return context.json(
-        await createMultipartSession(
-          context.env,
-          config,
-          intent.data,
-          context.req.header('cf-connecting-ip') ?? null,
-        ),
-        201,
-      );
-    }
-
-    return handleRawUpload(context.req.raw, context.env, undefined);
-  });
-  app.post('/api/v1/uploads/:id/multipart/parts/:partNumber', async (context) => {
-    const partNumber = Number.parseInt(context.req.param('partNumber'), 10);
-    const part = multipartPartRequestSchema.safeParse(await context.req.json());
-    if (!Number.isSafeInteger(partNumber) || !part.success) {
-      throw new AppError('VALIDATION_ERROR', 'The multipart part request is invalid.', 400);
-    }
-
-    return context.json(
-      await createMultipartPartUrl(
-        context.env,
-        getConfig(context.env),
-        context.req.param('id'),
-        context.req.header('x-upload-capability') ?? undefined,
-        partNumber,
-        part.data.size,
-      ),
-    );
-  });
-  app.put('/api/v1/uploads/:id/multipart/parts/:partNumber/content', async (context) => {
-    const partNumber = Number.parseInt(context.req.param('partNumber'), 10);
-    if (!Number.isSafeInteger(partNumber) || context.req.raw.body === null) {
-      throw new AppError('VALIDATION_ERROR', 'The multipart part upload is invalid.', 400);
-    }
-
-    const part = await uploadMultipartPart(
-      context.env,
-      getConfig(context.env),
-      context.req.param('id'),
-      context.req.header('x-upload-capability') ?? undefined,
-      partNumber,
-      parseContentLength(context.req.header('content-length') ?? undefined),
-      context.req.raw.body,
-    );
-    return new Response(null, { headers: { ETag: part.etag }, status: 204 });
-  });
-  app.post('/api/v1/uploads/:id/multipart/complete', async (context) =>
-    context.json(
-      await completeMultipartSession(
-        context.env,
-        getConfig(context.env),
-        context.req.param('id'),
-        context.req.header('x-upload-capability') ?? undefined,
-        await context.req.json(),
-      ),
-    ),
+  app.post('/api/v1/uploads', async (context) =>
+    handleRawUpload(context.req.raw, context.env, undefined),
   );
-  app.post('/api/v1/uploads/:id/multipart/abort', async (context) => {
-    await abortMultipartSession(
-      context.env,
-      context.req.param('id'),
-      context.req.header('x-upload-capability') ?? undefined,
-    );
-    return new Response(null, { status: 204 });
-  });
   app.post('/files', async (context) => handleRawUpload(context.req.raw, context.env, undefined));
   app.post('/files/:filename', async (context) =>
     handleRawUpload(context.req.raw, context.env, context.req.param('filename')),
@@ -310,7 +219,6 @@ export function createApp(): Hono<AppEnvironment> {
       success: true,
       fileListingMode: config.fileListingMode,
       runtimeMode: config.runtimeMode,
-      maxMultipartUploadBytes: config.maxMultipartUploadBytes,
       maxSingleUploadBytes: config.maxSingleUploadBytes,
       retentionHours: config.retentionHours,
       maxDownloads: config.maxDownloads,

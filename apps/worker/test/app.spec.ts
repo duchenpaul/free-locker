@@ -32,7 +32,6 @@ describe('application routing', () => {
     const response = await app.fetch(
       new Request('https://free-locker.example/api/v1/config'),
       {
-        MAX_MULTIPART_UPLOAD_BYTES: '5368709120',
         MAX_SINGLE_UPLOAD_BYTES: '10485760',
         RETENTION_HOURS: '48',
         MAX_DOWNLOADS: '3',
@@ -46,7 +45,6 @@ describe('application routing', () => {
       success: true,
       fileListingMode: 'disabled',
       runtimeMode: 'local',
-      maxMultipartUploadBytes: 5368709120,
       maxSingleUploadBytes: 10485760,
       retentionHours: 48,
       maxDownloads: 3,
@@ -65,7 +63,6 @@ describe('application routing', () => {
     await waitOnExecutionContext(executionContext);
 
     expect(await response.json()).toMatchObject({
-      maxMultipartUploadBytes: 10737418240,
       maxSingleUploadBytes: 99614720,
       retentionHours: 24,
       maxDownloads: 5,
