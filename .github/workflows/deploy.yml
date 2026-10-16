@@ -37,6 +37,8 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           RETENTION_HOURS: ${{ vars.RETENTION_HOURS }}
           MAX_DOWNLOADS: ${{ vars.MAX_DOWNLOADS }}
+          MAX_MULTIPART_UPLOAD_BYTES: ${{ vars.MAX_MULTIPART_UPLOAD_BYTES }}
+          MAX_SINGLE_UPLOAD_BYTES: ${{ vars.MAX_SINGLE_UPLOAD_BYTES }}
           FILE_LISTING_MODE: ${{ vars.FILE_LISTING_MODE }}
           RUNTIME_MODE: ${{ vars.RUNTIME_MODE }}
           GITHUB_ENVIRONMENT: prod
